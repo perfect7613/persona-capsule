@@ -19,6 +19,8 @@ Planning is complete and implementation has not started.
 
 - [Product requirements](./PRD.md)
 - [Technical plan audit](./PLAN_AUDIT.md)
+- [Codex development record](./CODEX_USAGE.md)
+- [Canonical PRD issue](https://github.com/perfect7613/persona-capsule/issues/1)
 
 The final Gradio application will be deployed to a Space in the
 [`build-small-hackathon`](https://huggingface.co/build-small-hackathon)
@@ -40,6 +42,18 @@ cp .env.example .env
 
 Never commit `.env`. Production credentials will use Hugging Face Space Secrets
 and Modal Secrets.
+
+## Built With Codex
+
+OpenAI Codex is being used throughout architecture, implementation, testing,
+documentation, and deployment. Codex-authored commits include:
+
+```text
+Co-authored-by: Codex <noreply@openai.com>
+```
+
+Project-level attribution rules live in [`AGENTS.md`](./AGENTS.md) and
+[`.codex/config.toml`](./.codex/config.toml).
 
 ## Security
 

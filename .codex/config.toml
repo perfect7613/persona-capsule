@@ -1,0 +1,6 @@
+# Official Codex commit-attribution configuration.
+# Project config is loaded only when this repository is trusted.
+commit_attribution = "Codex <noreply@openai.com>"
+
+[features]
+codex_git_commit = true
