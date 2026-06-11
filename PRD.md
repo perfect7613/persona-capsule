@@ -2,7 +2,7 @@
 
 ## Product Requirements Document
 
-**Status:** Draft for review  
+**Status:** Approved for implementation
 **Prepared:** June 11, 2026  
 **Submission deadline:** June 15, 2026  
 **Target track:** Thousand Token Wood  
@@ -954,13 +954,12 @@ deployment configuration are ready and will never be committed. The initial
 values supplied during planning must be rotated before deployment because they
 were transmitted in chat.
 
-### Review Gate
+### Approval And Publication
 
-This document must be approved before:
-
-- creating the public GitHub repository;
-- submitting the PRD as a GitHub issue;
-- creating the Hugging Face Space;
-- provisioning persistent repositories or storage;
-- adding rotated credentials to Hugging Face and Modal secret stores;
-- beginning implementation.
+- The PRD was approved for implementation on June 11, 2026.
+- The public GitHub repository and canonical PRD issue may be created.
+- The Hugging Face Space will be created when the application is ready for
+  deployment.
+- Persistent repositories and storage will be provisioned during implementation.
+- Rotated credentials will be added to Hugging Face and Modal secret stores only
+  when the corresponding deployment components are ready.
