@@ -26,3 +26,23 @@ def test_modal_requires_both_token_parts() -> None:
     settings = Settings.from_env({"MODAL_TOKEN_ID": "modal-id"})
 
     assert settings.modal_available is False
+
+
+def test_local_identity_is_only_allowed_in_development_or_test() -> None:
+    production = Settings.from_env(
+        {
+            "APP_ENV": "production",
+            "PERSONA_LOCAL_IDENTITY": "true",
+            "PERSONA_LOCAL_HF_USERNAME": "owner",
+        }
+    )
+    development = Settings.from_env(
+        {
+            "APP_ENV": "development",
+            "PERSONA_LOCAL_IDENTITY": "true",
+            "PERSONA_LOCAL_HF_USERNAME": "owner",
+        }
+    )
+
+    assert production.local_identity_allowed is False
+    assert development.local_identity_allowed is True

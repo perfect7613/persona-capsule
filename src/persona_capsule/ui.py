@@ -6,6 +6,8 @@ import gradio as gr
 
 from persona_capsule.config import Settings
 from persona_capsule.demo import DEMO_CAPSULE, demo_reply
+from persona_capsule.identity import IdentityGateway, Principal
+from persona_capsule.library import CapsuleLibrary
 
 CSS = """
 :root {
@@ -206,6 +208,52 @@ body, .gradio-container {
   margin: 8px 0;
 }
 
+.pc-library {
+  border-top: 1px solid var(--ink);
+  gap: 24px !important;
+  margin-top: 56px !important;
+  padding: 40px 0 20px;
+}
+
+.pc-library h3 {
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: clamp(38px, 5vw, 64px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin: 8px 0 14px;
+}
+
+.pc-account, .pc-library-state {
+  border: 1px solid var(--ink);
+  min-height: 150px;
+  padding: 22px;
+}
+
+.pc-account strong {
+  display: block;
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: 28px;
+  margin: 8px 0;
+}
+
+.pc-dev-identity {
+  background: var(--acid);
+  color: var(--ink);
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin-top: 12px;
+  padding: 6px 8px;
+  text-transform: uppercase;
+}
+
+.pc-login button {
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font-weight: 800 !important;
+}
+
 .pc-controls {
   background: rgba(243, 239, 226, 0.78) !important;
   border: 1px solid var(--ink) !important;
@@ -231,6 +279,7 @@ body, .gradio-container {
   .pc-card-art { min-height: 250px; }
   .pc-card-copy { padding: 40px 30px 48px; }
   .pc-meta { grid-template-columns: 1fr; }
+  .pc-library { flex-direction: column !important; }
 }
 """
 
@@ -303,6 +352,61 @@ def _capsule_html() -> str:
     """
 
 
+def _account_html(principal: Principal | None) -> str:
+    if principal is None:
+        return """
+        <div class="pc-account">
+          <span class="pc-label">Creator access</span>
+          <strong>Signed out</strong>
+          <p>Sign in with Hugging Face to create and manage private capsules.</p>
+        </div>
+        """
+
+    source = (
+        '<span class="pc-dev-identity">Local development identity</span>'
+        if principal.source == "local_development"
+        else ""
+    )
+    return f"""
+    <div class="pc-account">
+      <span class="pc-label">Authenticated creator</span>
+      <strong>@{escape(principal.username)}</strong>
+      <p>Private capsules are scoped to this Hugging Face identity.</p>
+      {source}
+    </div>
+    """
+
+
+def _library_html(principal: Principal | None, capsule_library: CapsuleLibrary) -> str:
+    if principal is None:
+        return """
+        <div class="pc-library-state">
+          <span class="pc-label">Private library</span>
+          <p>Locked. Public demos remain available, but creator operations require login.</p>
+        </div>
+        """
+
+    records = capsule_library.list_capsules(principal)
+    if not records:
+        return """
+        <div class="pc-library-state">
+          <span class="pc-label">Private library · 0 capsules</span>
+          <p>Your library is empty. Capsule creation opens in the next product slice.</p>
+        </div>
+        """
+
+    items = "".join(
+        f"<li><strong>{escape(record.name)}</strong> · {escape(record.status)}</li>"
+        for record in records
+    )
+    return f"""
+    <div class="pc-library-state">
+      <span class="pc-label">Private library · {len(records)} capsules</span>
+      <ul>{items}</ul>
+    </div>
+    """
+
+
 def build_theme() -> gr.Theme:
     """Return the project theme at the Gradio app boundary."""
 
@@ -316,12 +420,38 @@ def build_theme() -> gr.Theme:
     )
 
 
-def build_demo(settings: Settings) -> gr.Blocks:
+def build_demo(
+    settings: Settings,
+    identity_gateway: IdentityGateway,
+    capsule_library: CapsuleLibrary,
+) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
+
+    def load_private_library(
+        profile: gr.OAuthProfile | None,
+    ) -> tuple[str, str]:
+        principal = identity_gateway.resolve(profile)
+        return _account_html(principal), _library_html(principal, capsule_library)
 
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
         gr.HTML(_landing_html(settings))
         gr.HTML(_capsule_html())
+        with gr.Row(elem_classes=["pc-library"]):
+            with gr.Column(scale=7):
+                gr.HTML(
+                    """
+                    <span class="pc-kicker">Identity-bound by design</span>
+                    <h3>Your private library.</h3>
+                    <p>
+                      Public personality cards can travel. Source material, drafts,
+                      and creator controls stay attached to your Hugging Face identity.
+                    </p>
+                    """
+                )
+            with gr.Column(scale=13):
+                gr.LoginButton("Sign in with Hugging Face", elem_classes=["pc-login"])
+                account = gr.HTML()
+                library = gr.HTML()
         gr.HTML(
             """
             <section class="pc-demo-title">
@@ -348,5 +478,6 @@ def build_demo(settings: Settings) -> gr.Blocks:
             run = gr.Button("Respond as Signal / No. 01", elem_classes=["pc-button"])
             output = gr.Markdown(label="Capsule response")
             run.click(demo_reply, inputs=[prompt, intensity], outputs=output)
+        demo.load(load_private_library, inputs=None, outputs=[account, library])
 
     return demo

@@ -1,3 +1,16 @@
+---
+title: Persona Capsule
+emoji: 🧬
+colorFrom: yellow
+colorTo: red
+sdk: gradio
+sdk_version: 6.18.0
+python_version: "3.12"
+app_file: app.py
+pinned: false
+hf_oauth: true
+---
+
 # Persona Capsule
 
 Turn your communication style into a portable, composable, collectible persona
@@ -59,6 +72,17 @@ Open `http://127.0.0.1:7860/app/`. The readiness endpoint is available at
 
 The application starts without provider credentials. Missing providers are
 reported as unavailable without exposing secret values.
+
+Creator operations require a Hugging Face identity. For local UI work only, an
+explicit development identity can be enabled:
+
+```bash
+PERSONA_LOCAL_IDENTITY=true
+PERSONA_LOCAL_HF_USERNAME=your-hf-username
+```
+
+The adapter is ignored unless `APP_ENV` is `development` or `test`. It is never
+an anonymous production identity.
 
 ## Verify
 

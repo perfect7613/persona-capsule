@@ -15,6 +15,8 @@ class Settings:
     hugging_face_available: bool = False
     modal_available: bool = False
     elevenlabs_available: bool = False
+    local_identity_enabled: bool = False
+    local_hf_username: str = ""
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -29,6 +31,9 @@ class Settings:
                 environ.get(name, "").strip() for name in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET")
             ),
             elevenlabs_available=bool(environ.get("ELEVENLABS_API_KEY", "").strip()),
+            local_identity_enabled=environ.get("PERSONA_LOCAL_IDENTITY", "").lower()
+            in {"1", "true", "yes"},
+            local_hf_username=environ.get("PERSONA_LOCAL_HF_USERNAME", "").strip(),
         )
 
     @property
@@ -38,3 +43,11 @@ class Settings:
             "modal": self.modal_available,
             "elevenlabs": self.elevenlabs_available,
         }
+
+    @property
+    def local_identity_allowed(self) -> bool:
+        return (
+            self.app_env in {"development", "test"}
+            and self.local_identity_enabled
+            and bool(self.local_hf_username)
+        )
