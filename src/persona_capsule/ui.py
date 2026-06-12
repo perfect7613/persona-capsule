@@ -16,6 +16,8 @@ from persona_capsule.ingestion import (
 )
 from persona_capsule.library import CapsuleLibrary
 from persona_capsule.repository import CapsuleRecord
+from persona_capsule.steering import SteeringError
+from persona_capsule.steering_service import CapsuleSteeringService
 
 CSS = """
 :root {
@@ -502,6 +504,7 @@ def build_demo(
     settings: Settings,
     identity_gateway: IdentityGateway,
     capsule_library: CapsuleLibrary,
+    steering_service: CapsuleSteeringService,
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
 
@@ -545,7 +548,7 @@ def build_demo(
         directness: float,
         formality: float,
         principal: Principal | None,
-    ) -> tuple[str, str, str, str, None]:
+    ) -> tuple[str, str, str, str, None, CapsuleRecord]:
         if principal is None:
             raise gr.Error("Sign in with Hugging Face before saving a capsule.")
         if draft is None:
@@ -569,7 +572,7 @@ def build_demo(
             )
         except IngestionError as exc:
             raise gr.Error(str(exc)) from exc
-        capsule_library.save_capsule(
+        record = capsule_library.save_capsule(
             principal,
             CapsuleRecord(
                 capsule_id=uuid4().hex,
@@ -591,7 +594,30 @@ def build_demo(
             "",
             "",
             None,
+            record,
         )
+
+    def steer_core(
+        prompt: str,
+        strength: float,
+        capsule: CapsuleRecord | None,
+        principal: Principal | None,
+    ) -> tuple[str, str, object, str]:
+        try:
+            result = steering_service.compare(principal, capsule, prompt, strength)
+        except (KeyError, PermissionError, SteeringError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        diagnostics = result["diagnostics"]
+        warning = diagnostics.get("quality_warning")
+        status = (
+            f"Derived **{len(diagnostics['layers'])} live directions** from "
+            f"**{diagnostics['exemplar_count']} approved pairs**. "
+            f"Cache hit: **{diagnostics['cache_hit']}**. "
+            f"Hooks active after request: **{diagnostics['hooks_active_after_request']}**."
+        )
+        if warning:
+            status = f"**Quality warning:** {escape(str(warning))}\n\n{status}"
+        return result["baseline"], result["steered"], diagnostics, status
 
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
         gr.HTML(_landing_html(settings))
@@ -639,6 +665,7 @@ def build_demo(
             """
         )
         draft_state = gr.State(value=None)
+        approved_capsule_state = gr.State(value=None)
         with gr.Group(elem_classes=["pc-create-panel"]):
             with gr.Row():
                 capsule_name = gr.Textbox(
@@ -686,6 +713,41 @@ def build_demo(
             approve = gr.Button(
                 "Approve profile and retained pairs",
                 elem_classes=["pc-button"],
+            )
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
+              <span class="pc-kicker">Live inference · MiniCPM4.1-8B on Modal</span>
+              <h3>See the steering vector work.</h3>
+              <p>
+                Compare one deterministic baseline against a response steered from
+                the approved capsule pairs. Directions are derived inside the request,
+                applied at five decoder layers, and then removed.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            live_prompt = gr.Textbox(
+                label="Prompt",
+                placeholder="Explain why a small team should test the risky assumption first.",
+                lines=3,
+            )
+            live_strength = gr.Slider(
+                -1.5,
+                1.5,
+                value=0.85,
+                step=0.05,
+                label="Inference-time steering strength",
+                info="Values above ±1.1 may reduce coherence.",
+            )
+            live_run = gr.Button("Compare baseline vs live steering", elem_classes=["pc-button"])
+            live_status = gr.Markdown()
+            with gr.Row():
+                baseline_output = gr.Textbox(label="MiniCPM baseline", lines=9)
+                steered_output = gr.Textbox(label="Live-steered response", lines=9)
+            vector_diagnostics = gr.JSON(
+                label="Request-scoped vector diagnostics",
             )
         gr.HTML(
             """
@@ -746,6 +808,7 @@ def build_demo(
             raw_messages,
             cleaned_preview,
             draft_state,
+            approved_capsule_state,
         ]
 
         if settings.oauth_ui_available:
@@ -783,7 +846,7 @@ def build_demo(
                 direct_value: float,
                 formal_value: float,
                 profile: gr.OAuthProfile | None,
-            ) -> tuple[str, str, str, str, None]:
+            ) -> tuple[str, str, str, str, None, CapsuleRecord]:
                 return approve_core(
                     name,
                     draft,
@@ -807,6 +870,30 @@ def build_demo(
                 approve_with_oauth,
                 inputs=approval_inputs,
                 outputs=approval_outputs,
+            )
+
+            def steer_with_oauth(
+                prompt_value: str,
+                strength_value: float,
+                capsule: CapsuleRecord | None,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str, object, str]:
+                return steer_core(
+                    prompt_value,
+                    strength_value,
+                    capsule,
+                    identity_gateway.resolve(profile),
+                )
+
+            live_run.click(
+                steer_with_oauth,
+                inputs=[live_prompt, live_strength, approved_capsule_state],
+                outputs=[
+                    baseline_output,
+                    steered_output,
+                    vector_diagnostics,
+                    live_status,
+                ],
             )
         else:
 
@@ -839,7 +926,7 @@ def build_demo(
                 emotional_value: float,
                 direct_value: float,
                 formal_value: float,
-            ) -> tuple[str, str, str, str, None]:
+            ) -> tuple[str, str, str, str, None, CapsuleRecord]:
                 return approve_core(
                     name,
                     draft,
@@ -863,6 +950,29 @@ def build_demo(
                 approve_locally,
                 inputs=approval_inputs,
                 outputs=approval_outputs,
+            )
+
+            def steer_locally(
+                prompt_value: str,
+                strength_value: float,
+                capsule: CapsuleRecord | None,
+            ) -> tuple[str, str, object, str]:
+                return steer_core(
+                    prompt_value,
+                    strength_value,
+                    capsule,
+                    identity_gateway.resolve_local(),
+                )
+
+            live_run.click(
+                steer_locally,
+                inputs=[live_prompt, live_strength, approved_capsule_state],
+                outputs=[
+                    baseline_output,
+                    steered_output,
+                    vector_diagnostics,
+                    live_status,
+                ],
             )
 
     return demo

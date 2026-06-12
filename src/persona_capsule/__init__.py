@@ -1,5 +1,5 @@
-"""Persona Capsule application package."""
+"""Persona Capsule application package.
 
-from persona_capsule.app import create_app
-
-__all__ = ["create_app"]
+Import web and compute entry points from their owning modules so lightweight
+workers do not pull the entire Gradio application into memory.
+"""

@@ -9,18 +9,25 @@ from fastapi.responses import RedirectResponse
 from persona_capsule.config import Settings
 from persona_capsule.identity import IdentityGateway
 from persona_capsule.library import CapsuleLibrary
+from persona_capsule.modal_gateway import ModalSteeringGateway
 from persona_capsule.repository import InMemoryCapsuleRepository
+from persona_capsule.steering_service import CapsuleSteeringService, SteeringGateway
 from persona_capsule.ui import CSS, build_demo, build_theme
 
 
 def create_app(
     settings: Settings | None = None,
     repository: InMemoryCapsuleRepository | None = None,
+    steering_gateway: SteeringGateway | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     repository = repository or InMemoryCapsuleRepository()
     identity_gateway = IdentityGateway(settings)
     capsule_library = CapsuleLibrary(repository)
+    steering_service = CapsuleSteeringService(
+        capsule_library,
+        steering_gateway or ModalSteeringGateway(),
+    )
     app = FastAPI(
         title="Persona Capsule",
         description="Portable, composable communication personas.",
@@ -60,7 +67,12 @@ def create_app(
 
     return gr.mount_gradio_app(
         app=app,
-        blocks=build_demo(settings, identity_gateway, capsule_library),
+        blocks=build_demo(
+            settings,
+            identity_gateway,
+            capsule_library,
+            steering_service,
+        ),
         path="/app",
         footer_links=[],
         theme=build_theme(),
