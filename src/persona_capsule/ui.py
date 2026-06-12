@@ -254,6 +254,12 @@ body, .gradio-container {
   font-weight: 800 !important;
 }
 
+.pc-login-unavailable {
+  border: 1px dashed var(--ink);
+  margin-bottom: 8px;
+  padding: 12px 14px;
+}
+
 .pc-controls {
   background: rgba(243, 239, 226, 0.78) !important;
   border: 1px solid var(--ink) !important;
@@ -427,12 +433,6 @@ def build_demo(
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
 
-    def load_private_library(
-        profile: gr.OAuthProfile | None,
-    ) -> tuple[str, str]:
-        principal = identity_gateway.resolve(profile)
-        return _account_html(principal), _library_html(principal, capsule_library)
-
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
         gr.HTML(_landing_html(settings))
         gr.HTML(_capsule_html())
@@ -449,7 +449,17 @@ def build_demo(
                     """
                 )
             with gr.Column(scale=13):
-                gr.LoginButton("Sign in with Hugging Face", elem_classes=["pc-login"])
+                if settings.oauth_ui_available:
+                    gr.LoginButton("Sign in with Hugging Face", elem_classes=["pc-login"])
+                else:
+                    gr.HTML(
+                        """
+                        <div class="pc-login-unavailable">
+                          Hugging Face login activates in the Space. For local OAuth
+                          testing, configure <code>HF_TOKEN</code>.
+                        </div>
+                        """
+                    )
                 account = gr.HTML()
                 library = gr.HTML()
         gr.HTML(
@@ -478,6 +488,22 @@ def build_demo(
             run = gr.Button("Respond as Signal / No. 01", elem_classes=["pc-button"])
             output = gr.Markdown(label="Capsule response")
             run.click(demo_reply, inputs=[prompt, intensity], outputs=output)
-        demo.load(load_private_library, inputs=None, outputs=[account, library])
+
+        if settings.oauth_ui_available:
+
+            def load_private_library(
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str]:
+                principal = identity_gateway.resolve(profile)
+                return _account_html(principal), _library_html(principal, capsule_library)
+
+            demo.load(load_private_library, inputs=None, outputs=[account, library])
+        else:
+
+            def load_local_library() -> tuple[str, str]:
+                principal = identity_gateway.resolve_local()
+                return _account_html(principal), _library_html(principal, capsule_library)
+
+            demo.load(load_local_library, inputs=None, outputs=[account, library])
 
     return demo

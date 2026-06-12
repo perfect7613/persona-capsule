@@ -15,6 +15,8 @@ class Settings:
     hugging_face_available: bool = False
     modal_available: bool = False
     elevenlabs_available: bool = False
+    space_environment: bool = False
+    local_oauth_available: bool = False
     local_identity_enabled: bool = False
     local_hf_username: str = ""
 
@@ -31,6 +33,8 @@ class Settings:
                 environ.get(name, "").strip() for name in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET")
             ),
             elevenlabs_available=bool(environ.get("ELEVENLABS_API_KEY", "").strip()),
+            space_environment=bool(environ.get("SPACE_ID", "").strip()),
+            local_oauth_available=bool(environ.get("HF_TOKEN", "").strip()),
             local_identity_enabled=environ.get("PERSONA_LOCAL_IDENTITY", "").lower()
             in {"1", "true", "yes"},
             local_hf_username=environ.get("PERSONA_LOCAL_HF_USERNAME", "").strip(),
@@ -51,3 +55,7 @@ class Settings:
             and self.local_identity_enabled
             and bool(self.local_hf_username)
         )
+
+    @property
+    def oauth_ui_available(self) -> bool:
+        return self.space_environment or self.local_oauth_available
