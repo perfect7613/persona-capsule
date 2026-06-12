@@ -4,6 +4,8 @@
 
 __pycache__/
 *.py[cod]
+.venv/
+.coverage
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -13,4 +15,3 @@ __pycache__/
 artifacts/
 outputs/
 checkpoints/
-

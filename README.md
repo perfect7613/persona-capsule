@@ -15,7 +15,9 @@ It combines:
 
 ## Status
 
-Planning is complete and implementation has not started.
+Planning is complete and implementation is underway. The first vertical slice
+provides a bootable FastAPI + Gradio shell, safe provider configuration status,
+and an offline deterministic capsule demo.
 
 - [Product requirements](./PRD.md)
 - [Technical plan audit](./PLAN_AUDIT.md)
@@ -42,6 +44,29 @@ cp .env.example .env
 
 Never commit `.env`. Production credentials will use Hugging Face Space Secrets
 and Modal Secrets.
+
+## Run Locally
+
+Python 3.11 or newer and [`uv`](https://docs.astral.sh/uv/) are recommended:
+
+```bash
+uv sync --extra dev
+uv run persona-capsule
+```
+
+Open `http://127.0.0.1:7860/app/`. The readiness endpoint is available at
+`http://127.0.0.1:7860/healthz`.
+
+The application starts without provider credentials. Missing providers are
+reported as unavailable without exposing secret values.
+
+## Verify
+
+```bash
+uv run ruff format --check .
+uv run ruff check .
+uv run pytest
+```
 
 ## Built With Codex
 
