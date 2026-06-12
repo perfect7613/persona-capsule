@@ -1,13 +1,21 @@
 """Custom Gradio interface for Persona Capsule."""
 
 from html import escape
+from uuid import uuid4
 
 import gradio as gr
 
 from persona_capsule.config import Settings
 from persona_capsule.demo import DEMO_CAPSULE, demo_reply
 from persona_capsule.identity import IdentityGateway, Principal
+from persona_capsule.ingestion import (
+    IngestionDraft,
+    IngestionError,
+    approve_draft,
+    build_ingestion_draft,
+)
 from persona_capsule.library import CapsuleLibrary
+from persona_capsule.repository import CapsuleRecord
 
 CSS = """
 :root {
@@ -260,6 +268,33 @@ body, .gradio-container {
   padding: 12px 14px;
 }
 
+.pc-create {
+  border-top: 1px solid var(--ink);
+  margin-top: 56px;
+  padding-top: 40px;
+}
+
+.pc-create h3 {
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: clamp(38px, 5vw, 64px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin: 8px 0 14px;
+}
+
+.pc-create-panel {
+  background: rgba(243, 239, 226, 0.78) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  padding: 20px !important;
+}
+
+.pc-privacy-note {
+  border-left: 4px solid var(--acid);
+  margin: 14px 0;
+  padding: 6px 0 6px 14px;
+}
+
 .pc-controls {
   background: rgba(243, 239, 226, 0.78) !important;
   border: 1px solid var(--ink) !important;
@@ -413,6 +448,43 @@ def _library_html(principal: Principal | None, capsule_library: CapsuleLibrary) 
     """
 
 
+def _draft_preview(draft: IngestionDraft) -> str:
+    messages = "\n".join(
+        f"{index + 1}. {escape(message.text)}" for index, message in enumerate(draft.messages)
+    )
+    redaction_counts: dict[str, int] = {}
+    for redaction in draft.redactions:
+        redaction_counts[redaction.kind] = redaction_counts.get(redaction.kind, 0) + 1
+    summary = ", ".join(
+        f"{kind.lower()}: {count}" for kind, count in sorted(redaction_counts.items())
+    )
+    if not summary:
+        summary = "none detected"
+    return (
+        f"### Cleaned sample\n\nRedactions: **{summary}**\n\n"
+        f"{messages}\n\n"
+        "_Original pasted text remains only in this active draft and is discarded on approval._"
+    )
+
+
+def _pair_rows(draft: IngestionDraft) -> list[list[object]]:
+    return [[True, pair.positive, pair.neutral] for pair in draft.proposed_pairs]
+
+
+def _selected_pair_hashes(rows: object, draft: IngestionDraft) -> set[str]:
+    if hasattr(rows, "values"):
+        rows = rows.values.tolist()
+    if not isinstance(rows, list):
+        return set()
+    selected: set[str] = set()
+    for index, row in enumerate(rows):
+        if index >= len(draft.proposed_pairs) or not isinstance(row, (list, tuple)):
+            continue
+        if row and bool(row[0]):
+            selected.add(draft.proposed_pairs[index].pair_hash)
+    return selected
+
+
 def build_theme() -> gr.Theme:
     """Return the project theme at the Gradio app boundary."""
 
@@ -432,6 +504,94 @@ def build_demo(
     capsule_library: CapsuleLibrary,
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
+
+    def analyze_core(
+        raw_input: str,
+        speaker: str,
+        consent: bool,
+        principal: Principal | None,
+    ) -> tuple[object, ...]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before creating a capsule.")
+        try:
+            draft = build_ingestion_draft(raw_input, speaker, consent)
+        except IngestionError as exc:
+            raise gr.Error(str(exc)) from exc
+        dimensions = draft.profile.dimensions
+        return (
+            _draft_preview(draft),
+            draft.profile.as_dict(),
+            _pair_rows(draft),
+            draft,
+            dimensions.openness,
+            dimensions.conscientiousness,
+            dimensions.expressiveness,
+            dimensions.agreeableness,
+            dimensions.emotional_range,
+            dimensions.directness,
+            dimensions.formality,
+            "Profile ready for review. Edit controls and choose the pairs to retain.",
+        )
+
+    def approve_core(
+        capsule_name: str,
+        draft: IngestionDraft | None,
+        pair_rows: object,
+        openness: float,
+        conscientiousness: float,
+        expressiveness: float,
+        agreeableness: float,
+        emotional_range: float,
+        directness: float,
+        formality: float,
+        principal: Principal | None,
+    ) -> tuple[str, str, str, str, None]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before saving a capsule.")
+        if draft is None:
+            raise gr.Error("Analyze a message sample before approval.")
+        name = capsule_name.strip()
+        if not name:
+            raise gr.Error("Give the capsule a name before approval.")
+        try:
+            approved = approve_draft(
+                draft,
+                _selected_pair_hashes(pair_rows, draft),
+                {
+                    "openness": openness,
+                    "conscientiousness": conscientiousness,
+                    "expressiveness": expressiveness,
+                    "agreeableness": agreeableness,
+                    "emotional_range": emotional_range,
+                    "directness": directness,
+                    "formality": formality,
+                },
+            )
+        except IngestionError as exc:
+            raise gr.Error(str(exc)) from exc
+        capsule_library.save_capsule(
+            principal,
+            CapsuleRecord(
+                capsule_id=uuid4().hex,
+                owner_id=principal.user_id,
+                name=name,
+                status="profile_approved",
+                style_profile=approved.profile,
+                exemplar_pairs=approved.exemplar_pairs,
+                source_fingerprint=approved.source_fingerprint,
+            ),
+        )
+        return (
+            (
+                f"Approved **{escape(name)}** with "
+                f"{len(approved.exemplar_pairs)} private steering pairs. "
+                "The original pasted input and unselected messages were discarded."
+            ),
+            _library_html(principal, capsule_library),
+            "",
+            "",
+            None,
+        )
 
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
         gr.HTML(_landing_html(settings))
@@ -464,6 +624,71 @@ def build_demo(
                 library = gr.HTML()
         gr.HTML(
             """
+            <section class="pc-create">
+              <span class="pc-kicker">Quick Capsule · private by default</span>
+              <h3>Approve the signal, not the archive.</h3>
+              <p>
+                Paste your own messages, review redactions and the inferred profile,
+                then choose the small set of examples retained for live steering.
+              </p>
+              <div class="pc-privacy-note">
+                This describes communication style, not mental health, identity,
+                intelligence, or a clinical personality diagnosis.
+              </div>
+            </section>
+            """
+        )
+        draft_state = gr.State(value=None)
+        with gr.Group(elem_classes=["pc-create-panel"]):
+            with gr.Row():
+                capsule_name = gr.Textbox(
+                    label="Capsule name",
+                    placeholder="e.g. Clear Signal",
+                )
+                speaker = gr.Textbox(
+                    label="Your speaker label",
+                    value="You",
+                    info='For "Name: message" exports, enter the matching name.',
+                )
+            raw_messages = gr.Textbox(
+                label="Your messages",
+                lines=10,
+                placeholder=(
+                    "You: Thanks — I see the tradeoff. Let’s test the smallest version first.\n"
+                    "You: I’m not convinced yet; what would change your mind?\n"
+                    "…paste at least 8 varied messages, ideally around 20."
+                ),
+            )
+            consent = gr.Checkbox(
+                label="I own these messages or have permission to process them.",
+                value=False,
+            )
+            analyze = gr.Button("Analyze private sample", elem_classes=["pc-button"])
+            creation_status = gr.Markdown()
+            cleaned_preview = gr.Markdown()
+            profile_json = gr.JSON(label="Editable profile evidence")
+            pair_table = gr.Dataframe(
+                headers=["Retain", "Style exemplar", "Neutral contrast"],
+                datatype=["bool", "str", "str"],
+                interactive=True,
+                label="Private steering pairs",
+            )
+            gr.Markdown("#### OCEAN-inspired style controls")
+            with gr.Row():
+                openness = gr.Slider(0, 100, value=50, label="Openness")
+                conscientiousness = gr.Slider(0, 100, value=50, label="Conscientiousness")
+                expressiveness = gr.Slider(0, 100, value=50, label="Expressiveness")
+            with gr.Row():
+                agreeableness = gr.Slider(0, 100, value=50, label="Agreeableness")
+                emotional_range = gr.Slider(0, 100, value=50, label="Emotional range")
+                directness = gr.Slider(0, 100, value=50, label="Directness")
+                formality = gr.Slider(0, 100, value=50, label="Formality")
+            approve = gr.Button(
+                "Approve profile and retained pairs",
+                elem_classes=["pc-button"],
+            )
+        gr.HTML(
+            """
             <section class="pc-demo-title">
               <span class="pc-kicker">Offline proof · no provider call</span>
               <h3>Try the capsule’s shape.</h3>
@@ -489,6 +714,40 @@ def build_demo(
             output = gr.Markdown(label="Capsule response")
             run.click(demo_reply, inputs=[prompt, intensity], outputs=output)
 
+        analysis_outputs = [
+            cleaned_preview,
+            profile_json,
+            pair_table,
+            draft_state,
+            openness,
+            conscientiousness,
+            expressiveness,
+            agreeableness,
+            emotional_range,
+            directness,
+            formality,
+            creation_status,
+        ]
+        approval_inputs = [
+            capsule_name,
+            draft_state,
+            pair_table,
+            openness,
+            conscientiousness,
+            expressiveness,
+            agreeableness,
+            emotional_range,
+            directness,
+            formality,
+        ]
+        approval_outputs = [
+            creation_status,
+            library,
+            raw_messages,
+            cleaned_preview,
+            draft_state,
+        ]
+
         if settings.oauth_ui_available:
 
             def load_private_library(
@@ -498,6 +757,57 @@ def build_demo(
                 return _account_html(principal), _library_html(principal, capsule_library)
 
             demo.load(load_private_library, inputs=None, outputs=[account, library])
+
+            def analyze_with_oauth(
+                raw_input: str,
+                speaker_label: str,
+                has_consent: bool,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, ...]:
+                return analyze_core(
+                    raw_input,
+                    speaker_label,
+                    has_consent,
+                    identity_gateway.resolve(profile),
+                )
+
+            def approve_with_oauth(
+                name: str,
+                draft: IngestionDraft | None,
+                rows: object,
+                open_value: float,
+                conscientious_value: float,
+                expressive_value: float,
+                agreeable_value: float,
+                emotional_value: float,
+                direct_value: float,
+                formal_value: float,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str, str, str, None]:
+                return approve_core(
+                    name,
+                    draft,
+                    rows,
+                    open_value,
+                    conscientious_value,
+                    expressive_value,
+                    agreeable_value,
+                    emotional_value,
+                    direct_value,
+                    formal_value,
+                    identity_gateway.resolve(profile),
+                )
+
+            analyze.click(
+                analyze_with_oauth,
+                inputs=[raw_messages, speaker, consent],
+                outputs=analysis_outputs,
+            )
+            approve.click(
+                approve_with_oauth,
+                inputs=approval_inputs,
+                outputs=approval_outputs,
+            )
         else:
 
             def load_local_library() -> tuple[str, str]:
@@ -505,5 +815,54 @@ def build_demo(
                 return _account_html(principal), _library_html(principal, capsule_library)
 
             demo.load(load_local_library, inputs=None, outputs=[account, library])
+
+            def analyze_locally(
+                raw_input: str,
+                speaker_label: str,
+                has_consent: bool,
+            ) -> tuple[object, ...]:
+                return analyze_core(
+                    raw_input,
+                    speaker_label,
+                    has_consent,
+                    identity_gateway.resolve_local(),
+                )
+
+            def approve_locally(
+                name: str,
+                draft: IngestionDraft | None,
+                rows: object,
+                open_value: float,
+                conscientious_value: float,
+                expressive_value: float,
+                agreeable_value: float,
+                emotional_value: float,
+                direct_value: float,
+                formal_value: float,
+            ) -> tuple[str, str, str, str, None]:
+                return approve_core(
+                    name,
+                    draft,
+                    rows,
+                    open_value,
+                    conscientious_value,
+                    expressive_value,
+                    agreeable_value,
+                    emotional_value,
+                    direct_value,
+                    formal_value,
+                    identity_gateway.resolve_local(),
+                )
+
+            analyze.click(
+                analyze_locally,
+                inputs=[raw_messages, speaker, consent],
+                outputs=analysis_outputs,
+            )
+            approve.click(
+                approve_locally,
+                inputs=approval_inputs,
+                outputs=approval_outputs,
+            )
 
     return demo

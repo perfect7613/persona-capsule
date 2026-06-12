@@ -29,6 +29,7 @@ persona-capsule = "persona_capsule.__main__:main"
 packages = ["src/persona_capsule"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.ruff]

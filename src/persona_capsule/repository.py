@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from threading import RLock
 
+from persona_capsule.profile import ExemplarPair, StyleProfile
+
 
 class CapsuleNotFoundError(KeyError):
     """Raised without revealing whether a capsule belongs to someone else."""
@@ -15,6 +17,9 @@ class CapsuleRecord:
     owner_id: str
     name: str
     status: str = "draft"
+    style_profile: StyleProfile | None = None
+    exemplar_pairs: tuple[ExemplarPair, ...] = ()
+    source_fingerprint: str = ""
 
 
 class InMemoryCapsuleRepository:
