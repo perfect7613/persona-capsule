@@ -1,17 +1,4 @@
----
-title: Persona Capsule
-emoji: 🧬
-colorFrom: yellow
-colorTo: red
-sdk: gradio
-sdk_version: 6.18.0
-python_version: "3.12"
-app_file: app.py
-pinned: false
-hf_oauth: true
----
-
-<!-- markdownlint-disable MD013 MD025 -->
+<!-- markdownlint-disable MD013 -->
 
 # Persona Capsule
 
