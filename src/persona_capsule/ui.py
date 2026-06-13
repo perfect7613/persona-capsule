@@ -19,6 +19,7 @@ from persona_capsule.ingestion import (
     build_ingestion_draft,
 )
 from persona_capsule.library import CapsuleLibrary
+from persona_capsule.publishing import PublishingService, PublishSelection
 from persona_capsule.repository import CapsuleRecord
 from persona_capsule.steering import SteeringError
 from persona_capsule.steering_service import CapsuleSteeringService
@@ -522,6 +523,7 @@ def build_demo(
     capsule_library: CapsuleLibrary,
     steering_service: CapsuleSteeringService,
     card_service: CapsuleCardService,
+    publishing_service: PublishingService,
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
 
@@ -672,6 +674,98 @@ def build_demo(
             str(result.social_path),
             status,
             result.record,
+        )
+
+    def publish_selection(
+        include_summary: bool,
+        include_descriptors: bool,
+        include_dimensions: bool,
+        include_card: bool,
+    ) -> PublishSelection:
+        return PublishSelection(
+            include_summary=include_summary,
+            include_descriptors=include_descriptors,
+            include_dimensions=include_dimensions,
+            include_card=include_card,
+        )
+
+    def preview_publish_core(
+        capsule_id: str,
+        include_summary: bool,
+        include_descriptors: bool,
+        include_dimensions: bool,
+        include_card: bool,
+        principal: Principal | None,
+    ) -> tuple[object, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before previewing publication.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule to publish.")
+        try:
+            projection = publishing_service.preview(
+                principal,
+                capsule_id,
+                publish_selection(
+                    include_summary,
+                    include_descriptors,
+                    include_dimensions,
+                    include_card,
+                ),
+            )
+        except (KeyError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        return projection, "Review every field below, then explicitly confirm publication."
+
+    def publish_core(
+        capsule_id: str,
+        include_summary: bool,
+        include_descriptors: bool,
+        include_dimensions: bool,
+        include_card: bool,
+        confirmed: bool,
+        principal: Principal | None,
+    ) -> tuple[str, CapsuleRecord]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before publishing.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule to publish.")
+        try:
+            record = publishing_service.publish(
+                principal,
+                capsule_id,
+                publish_selection(
+                    include_summary,
+                    include_descriptors,
+                    include_dimensions,
+                    include_card,
+                ),
+                confirmed=confirmed,
+            )
+        except (KeyError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        public_url = publishing_service.public_url(record)
+        x_url = publishing_service.x_share_url(record)
+        return (
+            f"Published at [{escape(public_url)}]({escape(public_url)}). "
+            f"[Share this capsule on X]({escape(x_url)}).",
+            record,
+        )
+
+    def unpublish_core(
+        capsule_id: str,
+        principal: Principal | None,
+    ) -> tuple[str, CapsuleRecord]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before unpublishing.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule to unpublish.")
+        try:
+            record = publishing_service.unpublish(principal, capsule_id)
+        except KeyError as exc:
+            raise gr.Error(str(exc)) from exc
+        return (
+            "Public page disabled. The private capsule and generated card remain available.",
+            record,
         )
 
     def open_capsule_core(
@@ -925,6 +1019,50 @@ def build_demo(
         gr.HTML(
             """
             <section class="pc-demo-title">
+              <span class="pc-kicker">Public projection · private source</span>
+              <h3>Choose exactly what travels.</h3>
+              <p>
+                Preview selected fields before publishing an opaque stable URL.
+                Private exemplars, evidence, owner IDs, and provider references
+                are never part of the public projection.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            with gr.Row():
+                publish_summary = gr.Checkbox(
+                    label="Public summary",
+                    value=True,
+                )
+                publish_descriptors = gr.Checkbox(
+                    label="Public descriptors",
+                    value=True,
+                )
+                publish_dimensions = gr.Checkbox(
+                    label="Public style dimensions",
+                    value=False,
+                )
+                publish_card = gr.Checkbox(
+                    label="Public social card",
+                    value=True,
+                )
+            preview_publish = gr.Button("Preview public projection")
+            public_preview = gr.JSON(label="Fields visible without login")
+            publish_confirmation = gr.Checkbox(
+                label="I reviewed this projection and want to make it public.",
+                value=False,
+            )
+            with gr.Row():
+                publish_capsule = gr.Button(
+                    "Publish stable capsule URL",
+                    elem_classes=["pc-button"],
+                )
+                unpublish_capsule = gr.Button("Unpublish capsule")
+            publish_status = gr.Markdown()
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
               <span class="pc-kicker">Live inference · MiniCPM4.1-8B on Modal</span>
               <h3>See the steering vector work.</h3>
               <p>
@@ -1140,6 +1278,74 @@ def build_demo(
                 ],
             )
 
+            def preview_publish_with_oauth(
+                capsule_id: str,
+                summary: bool,
+                descriptors: bool,
+                dimensions: bool,
+                card: bool,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, str]:
+                return preview_publish_core(
+                    capsule_id,
+                    summary,
+                    descriptors,
+                    dimensions,
+                    card,
+                    identity_gateway.resolve(profile),
+                )
+
+            def publish_with_oauth(
+                capsule_id: str,
+                summary: bool,
+                descriptors: bool,
+                dimensions: bool,
+                card: bool,
+                confirmed: bool,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, CapsuleRecord]:
+                return publish_core(
+                    capsule_id,
+                    summary,
+                    descriptors,
+                    dimensions,
+                    card,
+                    confirmed,
+                    identity_gateway.resolve(profile),
+                )
+
+            def unpublish_with_oauth(
+                capsule_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, CapsuleRecord]:
+                return unpublish_core(
+                    capsule_id,
+                    identity_gateway.resolve(profile),
+                )
+
+            publish_inputs = [
+                capsule_selector,
+                publish_summary,
+                publish_descriptors,
+                publish_dimensions,
+                publish_card,
+            ]
+            preview_publish.click(
+                preview_publish_with_oauth,
+                inputs=publish_inputs,
+                outputs=[public_preview, publish_status],
+            )
+            publish_capsule.click(
+                publish_with_oauth,
+                inputs=publish_inputs + [publish_confirmation],
+                outputs=[publish_status, approved_capsule_state],
+            )
+            unpublish_capsule.click(
+                unpublish_with_oauth,
+                inputs=[capsule_selector],
+                outputs=[publish_status, approved_capsule_state],
+            )
+
             def principal_from_oauth(
                 profile: gr.OAuthProfile | None,
             ) -> Principal | None:
@@ -1310,6 +1516,71 @@ def build_demo(
                     card_status,
                     approved_capsule_state,
                 ],
+            )
+
+            def preview_publish_locally(
+                capsule_id: str,
+                summary: bool,
+                descriptors: bool,
+                dimensions: bool,
+                card: bool,
+            ) -> tuple[object, str]:
+                return preview_publish_core(
+                    capsule_id,
+                    summary,
+                    descriptors,
+                    dimensions,
+                    card,
+                    identity_gateway.resolve_local(),
+                )
+
+            def publish_locally(
+                capsule_id: str,
+                summary: bool,
+                descriptors: bool,
+                dimensions: bool,
+                card: bool,
+                confirmed: bool,
+            ) -> tuple[str, CapsuleRecord]:
+                return publish_core(
+                    capsule_id,
+                    summary,
+                    descriptors,
+                    dimensions,
+                    card,
+                    confirmed,
+                    identity_gateway.resolve_local(),
+                )
+
+            def unpublish_locally(
+                capsule_id: str,
+            ) -> tuple[str, CapsuleRecord]:
+                return unpublish_core(
+                    capsule_id,
+                    identity_gateway.resolve_local(),
+                )
+
+            local_publish_inputs = [
+                capsule_selector,
+                publish_summary,
+                publish_descriptors,
+                publish_dimensions,
+                publish_card,
+            ]
+            preview_publish.click(
+                preview_publish_locally,
+                inputs=local_publish_inputs,
+                outputs=[public_preview, publish_status],
+            )
+            publish_capsule.click(
+                publish_locally,
+                inputs=local_publish_inputs + [publish_confirmation],
+                outputs=[publish_status, approved_capsule_state],
+            )
+            unpublish_capsule.click(
+                unpublish_locally,
+                inputs=[capsule_selector],
+                outputs=[publish_status, approved_capsule_state],
             )
 
             def open_locally(

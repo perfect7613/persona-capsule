@@ -68,6 +68,8 @@ def test_repository_contract_is_owner_scoped_and_deletion_is_idempotent(
 
     assert repository.delete_for_owner(ALICE, saved.capsule_id) is True
     assert repository.delete_for_owner(ALICE, saved.capsule_id) is False
+    with pytest.raises(CapsuleNotFoundError):
+        repository.get_public_by_slug("not-published")
 
 
 def test_file_repository_round_trips_private_and_public_projections(tmp_path: Path) -> None:

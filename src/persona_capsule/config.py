@@ -21,6 +21,7 @@ class Settings:
     local_hf_username: str = ""
     capsule_data_dir: str = ".persona-capsule-data"
     hf_capsule_repo_id: str = ""
+    public_base_url: str = "http://127.0.0.1:7860"
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -46,6 +47,10 @@ class Settings:
             ).strip()
             or ".persona-capsule-data",
             hf_capsule_repo_id=environ.get("HF_CAPSULE_REPO_ID", "").strip(),
+            public_base_url=environ.get(
+                "PUBLIC_BASE_URL",
+                "http://127.0.0.1:7860",
+            ).rstrip("/"),
         )
 
     @property

@@ -82,6 +82,10 @@ class CapsuleRecord:
     card_provider: str = ""
     card_model_id: str = ""
     card_model_revision: str = ""
+    is_published: bool = False
+    public_slug: str = ""
+    published_projection: dict[str, Any] | None = None
+    published_at: str = ""
     created_at: str = ""
     updated_at: str = ""
 
@@ -123,6 +127,10 @@ class CapsuleRecord:
             "card_provider": self.card_provider,
             "card_model_id": self.card_model_id,
             "card_model_revision": self.card_model_revision,
+            "is_published": self.is_published,
+            "public_slug": self.public_slug,
+            "published_projection": self.published_projection,
+            "published_at": self.published_at,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -159,6 +167,14 @@ class CapsuleRecord:
             card_provider=str(payload.get("card_provider", "")),
             card_model_id=str(payload.get("card_model_id", "")),
             card_model_revision=str(payload.get("card_model_revision", "")),
+            is_published=bool(payload.get("is_published", False)),
+            public_slug=str(payload.get("public_slug", "")),
+            published_projection=(
+                dict(payload["published_projection"])
+                if payload.get("published_projection") is not None
+                else None
+            ),
+            published_at=str(payload.get("published_at", "")),
             created_at=str(payload.get("created_at", "")),
             updated_at=str(payload.get("updated_at", "")),
         )
@@ -179,6 +195,8 @@ class CapsuleRepository(Protocol):
     ) -> CapsuleRecord: ...
 
     def delete_for_owner(self, owner_id: str, capsule_id: str) -> bool: ...
+
+    def get_public_by_slug(self, slug: str) -> CapsuleRecord: ...
 
 
 class InMemoryCapsuleRepository:
@@ -230,6 +248,13 @@ class InMemoryCapsuleRepository:
                 raise CapsuleNotFoundError(capsule_id)
             self._records.pop(capsule_id)
         return True
+
+    def get_public_by_slug(self, slug: str) -> CapsuleRecord:
+        with self._lock:
+            for record in self._records.values():
+                if record.is_published and record.public_slug == slug:
+                    return record
+        raise CapsuleNotFoundError(slug)
 
 
 class FileCapsuleRepository:
@@ -330,6 +355,15 @@ class FileCapsuleRepository:
                     artifact.rmdir()
             artifact_dir.rmdir()
         return True
+
+    def get_public_by_slug(self, slug: str) -> CapsuleRecord:
+        if not self._records_root.exists():
+            raise CapsuleNotFoundError(slug)
+        for path in self._records_root.glob("*/*.json"):
+            record = CapsuleRecord.from_dict(json.loads(path.read_text(encoding="utf-8")))
+            if record.is_published and record.public_slug == slug:
+                return record
+        raise CapsuleNotFoundError(slug)
 
 
 class HubApiLike(Protocol):
@@ -459,3 +493,12 @@ class HuggingFaceDatasetCapsuleRepository:
             commit_message=f"Delete capsule {capsule_id}",
         )
         return True
+
+    def get_public_by_slug(self, slug: str) -> CapsuleRecord:
+        for path in self._files():
+            if not path.startswith("capsules/") or not path.endswith(".json"):
+                continue
+            record = self._download_record(path)
+            if record.is_published and record.public_slug == slug:
+                return record
+        raise CapsuleNotFoundError(slug)
