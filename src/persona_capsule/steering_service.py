@@ -21,6 +21,8 @@ class SteeringGateway(Protocol):
         strength: float,
     ) -> dict[str, Any]: ...
 
+    def invalidate(self, *, owner_id: str, capsule_id: str) -> None: ...
+
 
 class CapsuleSteeringService:
     def __init__(
@@ -57,4 +59,12 @@ class CapsuleSteeringService:
             prompt=cleaned_prompt,
             pairs=persisted.exemplar_pairs,
             strength=validate_strength(strength),
+        )
+
+    def invalidate(self, principal: Principal | None, capsule_id: str) -> None:
+        if principal is None:
+            raise PermissionError("Hugging Face login required")
+        self._gateway.invalidate(
+            owner_id=principal.user_id,
+            capsule_id=capsule_id,
         )

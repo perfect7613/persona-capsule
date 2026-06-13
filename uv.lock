@@ -1426,6 +1426,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "gradio", extra = ["oauth"] },
+    { name = "huggingface-hub" },
     { name = "modal" },
     { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1443,6 +1444,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "gradio", extras = ["oauth"], specifier = ">=6.0.1,<7" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
+    { name = "huggingface-hub", specifier = ">=1.0,<2" },
     { name = "modal", specifier = ">=1.5,<2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
     { name = "python-dotenv", specifier = ">=1.0,<2" },

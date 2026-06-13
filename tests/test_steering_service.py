@@ -18,6 +18,7 @@ PAIR = ExemplarPair("Warm and direct.", "The response is direct.", 0)
 class RecordingGateway:
     def __init__(self) -> None:
         self.calls = []
+        self.invalidations = []
 
     def compare(self, **kwargs):
         self.calls.append(kwargs)
@@ -26,6 +27,9 @@ class RecordingGateway:
             "steered": "steered",
             "diagnostics": {"layers": []},
         }
+
+    def invalidate(self, **kwargs):
+        self.invalidations.append(kwargs)
 
 
 def _service() -> tuple[CapsuleSteeringService, RecordingGateway, CapsuleRecord]:
@@ -76,3 +80,11 @@ def test_compare_rejects_anonymous_cross_owner_and_unapproved_requests() -> None
         service.compare(ALICE, record, " ", 0.8)
 
     assert gateway.calls == []
+
+
+def test_invalidate_is_owner_scoped() -> None:
+    service, gateway, record = _service()
+
+    service.invalidate(ALICE, record.capsule_id)
+
+    assert gateway.invalidations == [{"owner_id": ALICE.user_id, "capsule_id": record.capsule_id}]

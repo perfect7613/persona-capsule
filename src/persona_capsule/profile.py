@@ -30,6 +30,18 @@ class StyleDimensions:
         bounded = {key: max(0.0, min(100.0, float(value))) for key, value in values.items()}
         return replace(self, **bounded)
 
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "StyleDimensions":
+        return cls(
+            openness=float(payload["openness"]),
+            conscientiousness=float(payload["conscientiousness"]),
+            expressiveness=float(payload["expressiveness"]),
+            agreeableness=float(payload["agreeableness"]),
+            emotional_range=float(payload["emotional_range"]),
+            directness=float(payload["directness"]),
+            formality=float(payload["formality"]),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class StyleProfile:
@@ -54,6 +66,18 @@ class StyleProfile:
             payload["evidence"] = list(self.evidence)
         return payload
 
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "StyleProfile":
+        return cls(
+            summary=str(payload["summary"]),
+            descriptors=tuple(map(str, payload.get("descriptors", ()))),
+            lexical_tendencies=tuple(map(str, payload.get("lexical_tendencies", ()))),
+            sentence_rhythm=str(payload["sentence_rhythm"]),
+            dimensions=StyleDimensions.from_dict(payload["dimensions"]),
+            evidence=tuple(map(str, payload.get("evidence", ()))),
+            uncertainty=float(payload["uncertainty"]),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ExemplarPair:
@@ -73,6 +97,14 @@ class ExemplarPair:
             "source_index": self.source_index,
             "pair_hash": self.pair_hash,
         }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "ExemplarPair":
+        return cls(
+            positive=str(payload["positive"]),
+            neutral=str(payload["neutral"]),
+            source_index=int(payload["source_index"]),
+        )
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,12 +1,15 @@
 """Custom Gradio interface for Persona Capsule."""
 
+from hashlib import sha256
 from html import escape
+from pathlib import Path
 from uuid import uuid4
 
 import gradio as gr
 
 from persona_capsule.config import Settings
 from persona_capsule.demo import DEMO_CAPSULE, demo_reply
+from persona_capsule.export import build_capsule_export
 from persona_capsule.identity import IdentityGateway, Principal
 from persona_capsule.ingestion import (
     IngestionDraft,
@@ -450,6 +453,18 @@ def _library_html(principal: Principal | None, capsule_library: CapsuleLibrary) 
     """
 
 
+def _capsule_choices(
+    principal: Principal | None,
+    capsule_library: CapsuleLibrary,
+) -> list[tuple[str, str]]:
+    if principal is None:
+        return []
+    return [
+        (f"{record.name} · {record.status}", record.capsule_id)
+        for record in capsule_library.list_capsules(principal)
+    ]
+
+
 def _draft_preview(draft: IngestionDraft) -> str:
     messages = "\n".join(
         f"{index + 1}. {escape(message.text)}" for index, message in enumerate(draft.messages)
@@ -548,7 +563,7 @@ def build_demo(
         directness: float,
         formality: float,
         principal: Principal | None,
-    ) -> tuple[str, str, str, str, None, CapsuleRecord]:
+    ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
         if principal is None:
             raise gr.Error("Sign in with Hugging Face before saving a capsule.")
         if draft is None:
@@ -595,6 +610,10 @@ def build_demo(
             "",
             None,
             record,
+            gr.Dropdown(
+                choices=_capsule_choices(principal, capsule_library),
+                value=record.capsule_id,
+            ),
         )
 
     def steer_core(
@@ -618,6 +637,91 @@ def build_demo(
         if warning:
             status = f"**Quality warning:** {escape(str(warning))}\n\n{status}"
         return result["baseline"], result["steered"], diagnostics, status
+
+    def open_capsule_core(
+        capsule_id: str,
+        principal: Principal | None,
+    ) -> tuple[CapsuleRecord, object, list[list[object]], str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before opening a capsule.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule from your library.")
+        record = capsule_library.get_capsule(principal, capsule_id)
+        if record.style_profile is None:
+            raise gr.Error("This capsule does not have an approved profile.")
+        return (
+            record,
+            record.style_profile.as_dict(include_private_evidence=True),
+            [[True, pair.positive, pair.neutral] for pair in record.exemplar_pairs],
+            f"Opened **{escape(record.name)}** from durable private storage.",
+        )
+
+    def export_capsule_core(
+        capsule_id: str,
+        include_private_exemplars: bool,
+        principal: Principal | None,
+    ) -> tuple[str, str, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before exporting a capsule.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule to export.")
+        record = capsule_library.get_capsule(principal, capsule_id)
+        bundle = build_capsule_export(
+            record,
+            include_private_exemplars=include_private_exemplars,
+        )
+        export_dir = (
+            Path(settings.capsule_data_dir)
+            / "exports"
+            / sha256(principal.user_id.encode()).hexdigest()[:24]
+            / record.capsule_id
+        )
+        export_dir.mkdir(parents=True, exist_ok=True)
+        persona_path = export_dir / bundle.persona_filename
+        manifest_path = export_dir / bundle.manifest_filename
+        persona_path.write_bytes(bundle.persona_bytes)
+        manifest_path.write_bytes(bundle.manifest_bytes)
+        persona_path.chmod(0o600)
+        manifest_path.chmod(0o600)
+        return (
+            str(persona_path),
+            str(manifest_path),
+            (
+                "Export ready. Private exemplar pairs were included."
+                if include_private_exemplars
+                else "Export ready. Private exemplar pairs were excluded."
+            ),
+        )
+
+    def delete_capsule_core(
+        capsule_id: str,
+        confirmed: bool,
+        principal: Principal | None,
+    ) -> tuple[str, str, object, None]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before deleting a capsule.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule to delete.")
+        if not confirmed:
+            raise gr.Error("Confirm permanent deletion first.")
+        deleted = capsule_library.delete_capsule(principal, capsule_id)
+        cache_status = "Warm steering cache invalidated."
+        try:
+            steering_service.invalidate(principal, capsule_id)
+        except Exception:
+            cache_status = "Remote cache expiry will finish cleanup."
+        choices = _capsule_choices(principal, capsule_library)
+        status = (
+            f"Capsule deleted and local artifacts removed. {cache_status}"
+            if deleted
+            else f"Capsule was already deleted. {cache_status}"
+        )
+        return (
+            status,
+            _library_html(principal, capsule_library),
+            gr.Dropdown(choices=choices, value=None),
+            None,
+        )
 
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
         gr.HTML(_landing_html(settings))
@@ -648,6 +752,36 @@ def build_demo(
                     )
                 account = gr.HTML()
                 library = gr.HTML()
+        with gr.Group(elem_classes=["pc-create-panel"]):
+            gr.Markdown("#### Open, export, or delete a private capsule")
+            with gr.Row():
+                capsule_selector = gr.Dropdown(
+                    label="Private capsule",
+                    choices=[],
+                )
+                open_capsule = gr.Button("Open capsule")
+            lifecycle_status = gr.Markdown()
+            reopened_profile = gr.JSON(label="Canonical private profile")
+            reopened_pairs = gr.Dataframe(
+                headers=["Approved", "Style exemplar", "Neutral contrast"],
+                datatype=["bool", "str", "str"],
+                interactive=False,
+                label="Approved private steering pairs",
+            )
+            include_export_exemplars = gr.Checkbox(
+                label="Include approved private exemplar pairs in this export",
+                value=False,
+            )
+            with gr.Row():
+                export_capsule = gr.Button("Export .persona and manifest")
+                delete_confirmation = gr.Checkbox(
+                    label="I understand this permanently deletes the capsule.",
+                    value=False,
+                )
+                delete_capsule = gr.Button("Delete capsule")
+            with gr.Row():
+                persona_export = gr.File(label=".persona export")
+                manifest_export = gr.File(label="Compatibility manifest")
         gr.HTML(
             """
             <section class="pc-create">
@@ -809,17 +943,29 @@ def build_demo(
             cleaned_preview,
             draft_state,
             approved_capsule_state,
+            capsule_selector,
         ]
 
         if settings.oauth_ui_available:
 
             def load_private_library(
                 profile: gr.OAuthProfile | None,
-            ) -> tuple[str, str]:
+            ) -> tuple[str, str, object]:
                 principal = identity_gateway.resolve(profile)
-                return _account_html(principal), _library_html(principal, capsule_library)
+                return (
+                    _account_html(principal),
+                    _library_html(principal, capsule_library),
+                    gr.Dropdown(
+                        choices=_capsule_choices(principal, capsule_library),
+                        value=None,
+                    ),
+                )
 
-            demo.load(load_private_library, inputs=None, outputs=[account, library])
+            demo.load(
+                load_private_library,
+                inputs=None,
+                outputs=[account, library, capsule_selector],
+            )
 
             def analyze_with_oauth(
                 raw_input: str,
@@ -846,7 +992,7 @@ def build_demo(
                 direct_value: float,
                 formal_value: float,
                 profile: gr.OAuthProfile | None,
-            ) -> tuple[str, str, str, str, None, CapsuleRecord]:
+            ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
                 return approve_core(
                     name,
                     draft,
@@ -895,13 +1041,83 @@ def build_demo(
                     live_status,
                 ],
             )
+
+            def principal_from_oauth(
+                profile: gr.OAuthProfile | None,
+            ) -> Principal | None:
+                return identity_gateway.resolve(profile)
+
+            def open_with_oauth(
+                capsule_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[CapsuleRecord, object, list[list[object]], str]:
+                return open_capsule_core(capsule_id, principal_from_oauth(profile))
+
+            def export_with_oauth(
+                capsule_id: str,
+                include_private: bool,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str, str]:
+                return export_capsule_core(
+                    capsule_id,
+                    include_private,
+                    principal_from_oauth(profile),
+                )
+
+            def delete_with_oauth(
+                capsule_id: str,
+                confirmed: bool,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str, object, None]:
+                return delete_capsule_core(
+                    capsule_id,
+                    confirmed,
+                    principal_from_oauth(profile),
+                )
+
+            open_capsule.click(
+                open_with_oauth,
+                inputs=[capsule_selector],
+                outputs=[
+                    approved_capsule_state,
+                    reopened_profile,
+                    reopened_pairs,
+                    lifecycle_status,
+                ],
+            )
+            export_capsule.click(
+                export_with_oauth,
+                inputs=[capsule_selector, include_export_exemplars],
+                outputs=[persona_export, manifest_export, lifecycle_status],
+            )
+            delete_capsule.click(
+                delete_with_oauth,
+                inputs=[capsule_selector, delete_confirmation],
+                outputs=[
+                    lifecycle_status,
+                    library,
+                    capsule_selector,
+                    approved_capsule_state,
+                ],
+            )
         else:
 
-            def load_local_library() -> tuple[str, str]:
+            def load_local_library() -> tuple[str, str, object]:
                 principal = identity_gateway.resolve_local()
-                return _account_html(principal), _library_html(principal, capsule_library)
+                return (
+                    _account_html(principal),
+                    _library_html(principal, capsule_library),
+                    gr.Dropdown(
+                        choices=_capsule_choices(principal, capsule_library),
+                        value=None,
+                    ),
+                )
 
-            demo.load(load_local_library, inputs=None, outputs=[account, library])
+            demo.load(
+                load_local_library,
+                inputs=None,
+                outputs=[account, library, capsule_selector],
+            )
 
             def analyze_locally(
                 raw_input: str,
@@ -926,7 +1142,7 @@ def build_demo(
                 emotional_value: float,
                 direct_value: float,
                 formal_value: float,
-            ) -> tuple[str, str, str, str, None, CapsuleRecord]:
+            ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
                 return approve_core(
                     name,
                     draft,
@@ -972,6 +1188,60 @@ def build_demo(
                     steered_output,
                     vector_diagnostics,
                     live_status,
+                ],
+            )
+
+            def open_locally(
+                capsule_id: str,
+            ) -> tuple[CapsuleRecord, object, list[list[object]], str]:
+                return open_capsule_core(
+                    capsule_id,
+                    identity_gateway.resolve_local(),
+                )
+
+            def export_locally(
+                capsule_id: str,
+                include_private: bool,
+            ) -> tuple[str, str, str]:
+                return export_capsule_core(
+                    capsule_id,
+                    include_private,
+                    identity_gateway.resolve_local(),
+                )
+
+            def delete_locally(
+                capsule_id: str,
+                confirmed: bool,
+            ) -> tuple[str, str, object, None]:
+                return delete_capsule_core(
+                    capsule_id,
+                    confirmed,
+                    identity_gateway.resolve_local(),
+                )
+
+            open_capsule.click(
+                open_locally,
+                inputs=[capsule_selector],
+                outputs=[
+                    approved_capsule_state,
+                    reopened_profile,
+                    reopened_pairs,
+                    lifecycle_status,
+                ],
+            )
+            export_capsule.click(
+                export_locally,
+                inputs=[capsule_selector, include_export_exemplars],
+                outputs=[persona_export, manifest_export, lifecycle_status],
+            )
+            delete_capsule.click(
+                delete_locally,
+                inputs=[capsule_selector, delete_confirmation],
+                outputs=[
+                    lifecycle_status,
+                    library,
+                    capsule_selector,
+                    approved_capsule_state,
                 ],
             )
 

@@ -33,3 +33,7 @@ class ModalSteeringGateway:
             strength=strength,
             max_new_tokens=96,
         )
+
+    def invalidate(self, *, owner_id: str, capsule_id: str) -> None:
+        runtime = modal.Cls.from_name(MODAL_APP_NAME, MODAL_CLASS_NAME)()
+        runtime.invalidate.remote(owner_id=owner_id, capsule_id=capsule_id)

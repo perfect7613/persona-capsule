@@ -1,7 +1,7 @@
 """Authenticated private capsule-library operations."""
 
 from persona_capsule.identity import Principal
-from persona_capsule.repository import CapsuleRecord, InMemoryCapsuleRepository
+from persona_capsule.repository import CapsuleRecord, CapsuleRepository
 
 
 class AuthenticationRequiredError(PermissionError):
@@ -9,7 +9,7 @@ class AuthenticationRequiredError(PermissionError):
 
 
 class CapsuleLibrary:
-    def __init__(self, repository: InMemoryCapsuleRepository) -> None:
+    def __init__(self, repository: CapsuleRepository) -> None:
         self._repository = repository
 
     @staticmethod
@@ -38,3 +38,10 @@ class CapsuleLibrary:
         name: str,
     ) -> CapsuleRecord:
         return self._repository.rename_for_owner(self._owner(principal), capsule_id, name)
+
+    def delete_capsule(
+        self,
+        principal: Principal | None,
+        capsule_id: str,
+    ) -> bool:
+        return self._repository.delete_for_owner(self._owner(principal), capsule_id)

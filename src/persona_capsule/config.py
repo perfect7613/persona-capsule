@@ -19,6 +19,8 @@ class Settings:
     local_oauth_available: bool = False
     local_identity_enabled: bool = False
     local_hf_username: str = ""
+    capsule_data_dir: str = ".persona-capsule-data"
+    hf_capsule_repo_id: str = ""
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -38,6 +40,12 @@ class Settings:
             local_identity_enabled=environ.get("PERSONA_LOCAL_IDENTITY", "").lower()
             in {"1", "true", "yes"},
             local_hf_username=environ.get("PERSONA_LOCAL_HF_USERNAME", "").strip(),
+            capsule_data_dir=environ.get(
+                "PERSONA_CAPSULE_DATA_DIR",
+                ".persona-capsule-data",
+            ).strip()
+            or ".persona-capsule-data",
+            hf_capsule_repo_id=environ.get("HF_CAPSULE_REPO_ID", "").strip(),
         )
 
     @property

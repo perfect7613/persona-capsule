@@ -8,6 +8,9 @@ class UnusedSteeringGateway:
     def compare(self, **kwargs):
         raise AssertionError(f"unexpected live steering call: {kwargs}")
 
+    def invalidate(self, **kwargs):
+        raise AssertionError(f"unexpected cache invalidation: {kwargs}")
+
 
 def test_health_is_ready_and_secret_safe() -> None:
     app = create_app(
