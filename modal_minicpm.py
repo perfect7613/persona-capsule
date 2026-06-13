@@ -300,6 +300,103 @@ class MiniCPMSteeringRuntime:
         }
 
     @modal.method()
+    def fuse(
+        self,
+        *,
+        owner_id: str,
+        first: dict[str, Any],
+        second: dict[str, Any],
+        prompt: str,
+        first_weight: float,
+        strength: float = 0.85,
+        max_new_tokens: int = 120,
+    ) -> dict[str, Any]:
+        import torch
+
+        started_at = monotonic()
+        weight = float(first_weight)
+        if not 0.0 <= weight <= 1.0:
+            raise ValueError("Fusion weight must be between 0 and 1.")
+        validated_strength = validate_strength(strength)
+        if not prompt.strip():
+            raise ValueError("Prompt cannot be empty.")
+
+        def pairs(source: dict[str, Any]) -> tuple[ExemplarPair, ...]:
+            return tuple(ExemplarPair.from_dict(pair) for pair in source.get("pairs", ()))
+
+        first_pairs = pairs(first)
+        second_pairs = pairs(second)
+        if not first_pairs or not second_pairs:
+            raise ValueError("Both fusion sources require approved exemplar pairs.")
+        first_vectors, _, first_hash, first_cache_hit = self._derive(
+            owner_id,
+            str(first["capsule_id"]),
+            str(first["capsule_version"]),
+            first_pairs,
+        )
+        second_vectors, _, second_hash, second_cache_hit = self._derive(
+            owner_id,
+            str(second["capsule_id"]),
+            str(second["capsule_version"]),
+            second_pairs,
+        )
+        fused_vectors = {}
+        layer_diagnostics = []
+        for index in RECIPE.layer_indices:
+            combined = weight * first_vectors[index].float() + (1.0 - weight) * (
+                second_vectors[index].float()
+            )
+            pre_norm = float(torch.linalg.vector_norm(combined).item())
+            if pre_norm <= 1e-8:
+                raise RuntimeError(f"Layer {index} produced a zero-magnitude fusion.")
+            direction = combined / pre_norm
+            fused_vectors[index] = direction.to(dtype=torch.bfloat16, device="cuda")
+            layer_diagnostics.append(
+                {
+                    "layer_index": index,
+                    "pre_normalization_norm": round(pre_norm, 6),
+                    "post_normalization_norm": round(
+                        float(torch.linalg.vector_norm(direction).item()),
+                        6,
+                    ),
+                }
+            )
+        hooks_active_after_request = True
+        try:
+            with request_hook_scope(
+                self.layers,
+                fused_vectors,
+                validated_strength,
+                self._hook_factory,
+            ):
+                fused = self._generate(prompt.strip(), max_new_tokens)
+        finally:
+            hooks_active_after_request = any(
+                bool(getattr(layer, "_forward_hooks", {})) for layer in self.layers.values()
+            )
+            del fused_vectors
+
+        return {
+            "fused": fused,
+            "diagnostics": {
+                "format_version": "persona-fusion-v1",
+                "recipe": RECIPE.as_dict(),
+                "first_weight": weight,
+                "second_weight": 1.0 - weight,
+                "source_derivation_hashes": [first_hash, second_hash],
+                "source_cache_hits": [first_cache_hit, second_cache_hit],
+                "layers": layer_diagnostics,
+                "strength": validated_strength,
+                "hooks_active_after_request": hooks_active_after_request,
+                "persistence": "request-scoped vectors; no fused tensor written to storage",
+            },
+            "runtime": {
+                "gpu": "A10G",
+                "elapsed_seconds": round(monotonic() - started_at, 3),
+            },
+        }
+
+    @modal.method()
     def invalidate(self, *, owner_id: str, capsule_id: str) -> None:
         self.cache.invalidate_prefix(owner_id, capsule_id)
 

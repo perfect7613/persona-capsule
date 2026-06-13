@@ -6,12 +6,23 @@ import gradio as gr
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
+from persona_capsule.battle import BattleJudgeGateway, CapsuleBattleService
 from persona_capsule.card import ArtProvider, CapsuleCardService
 from persona_capsule.config import Settings
+from persona_capsule.deep_gateway import ModalDeepTrainingGateway
+from persona_capsule.deep_training import DeepCapsuleService, DeepTrainingGateway
 from persona_capsule.flux_gateway import ModalFluxArtGateway
+from persona_capsule.fusion import CapsuleFusionService, FusionGateway
 from persona_capsule.identity import IdentityGateway
 from persona_capsule.library import CapsuleLibrary
 from persona_capsule.modal_gateway import ModalSteeringGateway
+from persona_capsule.nemotron_gateway import ModalNemotronGateway
+from persona_capsule.operations import (
+    DailyQuotaManager,
+    FeatureFlags,
+    OperationsGuard,
+    SafeTelemetry,
+)
 from persona_capsule.publishing import PublishingService
 from persona_capsule.repository import CapsuleRepository, InMemoryCapsuleRepository
 from persona_capsule.repository_factory import build_capsule_repository
@@ -30,6 +41,9 @@ def create_app(
     steering_gateway: SteeringGateway | None = None,
     art_provider: ArtProvider | None = None,
     voice_provider: VoiceProvider | None = None,
+    fusion_gateway: FusionGateway | None = None,
+    battle_judge_gateway: BattleJudgeGateway | None = None,
+    deep_training_gateway: DeepTrainingGateway | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     if repository is None:
@@ -40,9 +54,10 @@ def create_app(
         )
     identity_gateway = IdentityGateway(settings)
     capsule_library = CapsuleLibrary(repository)
+    modal_steering_gateway = steering_gateway or ModalSteeringGateway()
     steering_service = CapsuleSteeringService(
         capsule_library,
-        steering_gateway or ModalSteeringGateway(),
+        modal_steering_gateway,
     )
     card_service = CapsuleCardService(
         capsule_library,
@@ -72,6 +87,33 @@ def create_app(
         voice_provider,
         temporary_hours=settings.voice_temporary_hours,
     )
+    fusion_service = CapsuleFusionService(
+        capsule_library,
+        fusion_gateway or modal_steering_gateway,
+        card_service,
+    )
+    battle_service = CapsuleBattleService(
+        capsule_library,
+        modal_steering_gateway,
+        battle_judge_gateway or ModalNemotronGateway(),
+    )
+    deep_service = DeepCapsuleService(
+        capsule_library,
+        deep_training_gateway or ModalDeepTrainingGateway(),
+    )
+    effective_features = {
+        **settings.feature_flags,
+        "steering": settings.enable_steering and settings.modal_available,
+        "voice": settings.enable_voice and settings.elevenlabs_available,
+        "fusion": settings.enable_fusion and settings.modal_available,
+        "battle": settings.enable_battle and settings.modal_available,
+        "deep_training": settings.enable_deep_training and settings.modal_available,
+    }
+    operations = OperationsGuard(
+        FeatureFlags(**effective_features),
+        DailyQuotaManager(settings.quotas),
+        SafeTelemetry(f"{settings.capsule_data_dir}/telemetry/events.jsonl"),
+    )
     app = FastAPI(
         title="Persona Capsule",
         description="Portable, composable communication personas.",
@@ -89,6 +131,8 @@ def create_app(
             "environment": settings.app_env,
             "demo_available": True,
             "providers": settings.providers,
+            "features": effective_features,
+            "daily_quotas": settings.quotas,
         }
 
     @app.get("/api/creator/capsules", tags=["creator"])
@@ -157,6 +201,10 @@ def create_app(
             card_service,
             publishing_service,
             voice_service,
+            fusion_service,
+            battle_service,
+            deep_service,
+            operations,
         ),
         path="/app",
         footer_links=[],

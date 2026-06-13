@@ -172,6 +172,33 @@ def normalize_components(values: Sequence[float]) -> tuple[tuple[float, ...], fl
     return tuple(value / norm for value in components), norm
 
 
+def compose_layer_vectors(
+    first: Mapping[int, Sequence[float]],
+    second: Mapping[int, Sequence[float]],
+    first_weight: float,
+) -> dict[int, tuple[float, ...]]:
+    """Normalize each source, apply display weights, and normalize the result."""
+
+    weight = float(first_weight)
+    if not 0.0 <= weight <= 1.0:
+        raise SteeringError("Fusion weight must be between 0 and 1.")
+    if set(first) != set(second):
+        raise SteeringCompatibilityError("Fusion sources use different steering layers.")
+
+    composed: dict[int, tuple[float, ...]] = {}
+    for layer_index in sorted(first):
+        first_normalized, _ = normalize_components(first[layer_index])
+        second_normalized, _ = normalize_components(second[layer_index])
+        if len(first_normalized) != len(second_normalized):
+            raise SteeringCompatibilityError(f"Layer {layer_index} has incompatible hidden sizes.")
+        mixed = tuple(
+            weight * left + (1.0 - weight) * right
+            for left, right in zip(first_normalized, second_normalized, strict=True)
+        )
+        composed[layer_index], _ = normalize_components(mixed)
+    return composed
+
+
 def aggregate_pair_differences(
     differences: Mapping[int, Sequence[Sequence[float]]],
 ) -> tuple[dict[int, tuple[float, ...]], tuple[LayerVectorDiagnostics, ...]]:

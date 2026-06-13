@@ -7,10 +7,13 @@ from uuid import uuid4
 
 import gradio as gr
 
+from persona_capsule.battle import CapsuleBattleService
 from persona_capsule.card import CapsuleCardService
 from persona_capsule.config import Settings
+from persona_capsule.deep_training import DeepCapsuleService, estimate_deep_training
 from persona_capsule.demo import DEMO_CAPSULE, demo_reply
 from persona_capsule.export import build_capsule_export
+from persona_capsule.fusion import CapsuleFusionService
 from persona_capsule.identity import IdentityGateway, Principal
 from persona_capsule.ingestion import (
     IngestionDraft,
@@ -19,6 +22,11 @@ from persona_capsule.ingestion import (
     build_ingestion_draft,
 )
 from persona_capsule.library import CapsuleLibrary
+from persona_capsule.operations import (
+    FeatureDisabledError,
+    OperationsGuard,
+    QuotaExceededError,
+)
 from persona_capsule.publishing import PublishingService, PublishSelection
 from persona_capsule.repository import CapsuleRecord
 from persona_capsule.steering import SteeringError
@@ -468,6 +476,19 @@ def _capsule_choices(
     ]
 
 
+def _steerable_capsule_choices(
+    principal: Principal | None,
+    capsule_library: CapsuleLibrary,
+) -> list[tuple[str, str]]:
+    if principal is None:
+        return []
+    return [
+        (f"{record.name} · {record.status}", record.capsule_id)
+        for record in capsule_library.list_capsules(principal)
+        if record.style_profile is not None and record.exemplar_pairs
+    ]
+
+
 def _draft_preview(draft: IngestionDraft) -> str:
     messages = "\n".join(
         f"{index + 1}. {escape(message.text)}" for index, message in enumerate(draft.messages)
@@ -526,6 +547,10 @@ def build_demo(
     card_service: CapsuleCardService,
     publishing_service: PublishingService,
     voice_service: CapsuleVoiceService,
+    fusion_service: CapsuleFusionService,
+    battle_service: CapsuleBattleService,
+    deep_service: DeepCapsuleService,
+    operations: OperationsGuard,
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
 
@@ -578,6 +603,10 @@ def build_demo(
         if not name:
             raise gr.Error("Give the capsule a name before approval.")
         try:
+            operations.require(principal.user_id, "creation")
+        except (FeatureDisabledError, QuotaExceededError) as exc:
+            raise gr.Error(str(exc)) from exc
+        try:
             approved = approve_draft(
                 draft,
                 _selected_pair_hashes(pair_rows, draft),
@@ -628,9 +657,19 @@ def build_demo(
         capsule: CapsuleRecord | None,
         principal: Principal | None,
     ) -> tuple[str, str, object, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before running live steering.")
         try:
+            operations.require(principal.user_id, "steering")
             result = steering_service.compare(principal, capsule, prompt, strength)
-        except (KeyError, PermissionError, SteeringError, ValueError) as exc:
+        except (
+            FeatureDisabledError,
+            KeyError,
+            PermissionError,
+            QuotaExceededError,
+            SteeringError,
+            ValueError,
+        ) as exc:
             raise gr.Error(str(exc)) from exc
         diagnostics = result["diagnostics"]
         warning = diagnostics.get("quality_warning")
@@ -655,13 +694,20 @@ def build_demo(
         if not capsule_id:
             raise gr.Error("Approve or open a capsule before generating its card.")
         try:
+            operations.require(principal.user_id, "card")
             result = card_service.generate(
                 principal,
                 capsule_id,
                 variation=variation,
                 seed=int(seed),
             )
-        except (KeyError, PermissionError, ValueError) as exc:
+        except (
+            FeatureDisabledError,
+            KeyError,
+            PermissionError,
+            QuotaExceededError,
+            ValueError,
+        ) as exc:
             raise gr.Error(str(exc)) from exc
         provider_label = (
             "deterministic fallback" if result.used_fallback else "FLUX.2 Klein 4B on Modal"
@@ -691,6 +737,7 @@ def build_demo(
         if not capsule_id:
             raise gr.Error("Approve or open a capsule before creating its voice.")
         try:
+            operations.require(principal.user_id, "voice")
             result = voice_service.create_clone(
                 principal,
                 capsule_id,
@@ -699,7 +746,13 @@ def build_demo(
                 consented=consented,
                 retention=retention,
             )
-        except (KeyError, PermissionError, VoiceError) as exc:
+        except (
+            FeatureDisabledError,
+            KeyError,
+            PermissionError,
+            QuotaExceededError,
+            VoiceError,
+        ) as exc:
             raise gr.Error(str(exc)) from exc
         lifecycle = (
             f"temporary for {settings.voice_temporary_hours} hours"
@@ -944,6 +997,169 @@ def build_demo(
             _library_html(principal, capsule_library),
             gr.Dropdown(choices=choices, value=None),
             None,
+        )
+
+    def fusion_core(
+        first_id: str,
+        second_id: str,
+        first_percent: float,
+        prompt: str,
+        name: str,
+        voice_strategy: str,
+        principal: Principal | None,
+    ) -> tuple[str, object, str, str, str, CapsuleRecord, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before fusing capsules.")
+        try:
+            operations.require(principal.user_id, "fusion")
+            result = fusion_service.create(
+                principal,
+                first_id=first_id,
+                second_id=second_id,
+                first_weight=float(first_percent) / 100,
+                prompt=prompt,
+                name=name,
+                voice_strategy=voice_strategy,
+            )
+        except (
+            FeatureDisabledError,
+            KeyError,
+            PermissionError,
+            QuotaExceededError,
+            SteeringError,
+            ValueError,
+        ) as exc:
+            raise gr.Error(str(exc)) from exc
+        return (
+            result.response,
+            result.diagnostics,
+            (
+                f"Saved **{escape(result.record.name)}** as a private fusion. "
+                "Both source directions were derived and combined inside this request; "
+                "no fused tensor was persisted."
+            ),
+            result.interactive_card_path,
+            result.social_card_path,
+            result.record,
+            _library_html(principal, capsule_library),
+        )
+
+    def fusion_compatibility_core(
+        first_id: str,
+        second_id: str,
+        principal: Principal | None,
+    ) -> str:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before checking fusion compatibility.")
+        try:
+            compatibility = fusion_service.compatibility(principal, first_id, second_id)
+        except (KeyError, PermissionError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        marker = "Compatible" if compatibility.compatible else "Not compatible"
+        return f"**{marker}:** {escape(compatibility.reason)}"
+
+    def battle_core(
+        first_id: str,
+        second_id: str,
+        challenge: str,
+        principal: Principal | None,
+    ) -> tuple[object, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before starting a battle.")
+        try:
+            operations.require(principal.user_id, "battle")
+            result = battle_service.run(
+                principal,
+                first_id=first_id,
+                second_id=second_id,
+                challenge=challenge,
+            )
+        except (
+            FeatureDisabledError,
+            KeyError,
+            PermissionError,
+            QuotaExceededError,
+            RuntimeError,
+            ValueError,
+        ) as exc:
+            raise gr.Error(str(exc)) from exc
+        return (
+            result.as_dict(),
+            (
+                f"Nemotron judged both anonymous orders. Winner: **{escape(result.winner)}**. "
+                f"{escape(result.disclaimer)}"
+            ),
+        )
+
+    def deep_estimate_core(visual_lora: bool) -> tuple[object, str]:
+        estimate = estimate_deep_training(visual_lora=visual_lora)
+        return (
+            estimate.as_dict(),
+            (
+                f"Estimated **{estimate.estimated_minutes} minutes** and approximately "
+                f"**${estimate.estimated_modal_credits:.2f}** of the Modal credit budget."
+            ),
+        )
+
+    def deep_start_core(
+        capsule_id: str,
+        idempotency_key: str,
+        visual_lora: bool,
+        confirmed: bool,
+        principal: Principal | None,
+    ) -> tuple[object, str, CapsuleRecord]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before starting Deep Capsule.")
+        try:
+            operations.require(principal.user_id, "deep_training")
+            record = deep_service.start(
+                principal,
+                capsule_id,
+                idempotency_key=idempotency_key,
+                visual_lora=visual_lora,
+                confirmed=confirmed,
+            )
+        except (
+            FeatureDisabledError,
+            KeyError,
+            PermissionError,
+            QuotaExceededError,
+            ValueError,
+        ) as exc:
+            raise gr.Error(str(exc)) from exc
+        return (
+            record.deep_training,
+            "Deep Capsule queued on Modal. The Quick Capsule remains fully usable.",
+            record,
+        )
+
+    def deep_poll_core(
+        capsule_id: str,
+        principal: Principal | None,
+    ) -> tuple[object, str, CapsuleRecord]:
+        try:
+            record = deep_service.poll(principal, capsule_id)
+        except (KeyError, PermissionError, RuntimeError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        job = record.deep_training or {}
+        return (
+            job,
+            f"Deep Capsule status: **{escape(str(job.get('status', 'unknown')))}**.",
+            record,
+        )
+
+    def deep_cancel_core(
+        capsule_id: str,
+        principal: Principal | None,
+    ) -> tuple[object, str, CapsuleRecord]:
+        try:
+            record = deep_service.cancel(principal, capsule_id)
+        except (KeyError, PermissionError, RuntimeError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        return (
+            record.deep_training,
+            "Deep Capsule cancelled. The original Quick Capsule is unchanged.",
+            record,
         )
 
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
@@ -1250,11 +1466,124 @@ def build_demo(
         gr.HTML(
             """
             <section class="pc-demo-title">
+              <span class="pc-kicker">Compatible composition · no stored tensor</span>
+              <h3>Fuse two capsules into a new signal.</h3>
+              <p>
+                Both source vectors are derived during the request, normalized per
+                layer, weighted, and removed. The saved fusion keeps editable profile
+                data, source snapshots, exact weights, and provenance.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            with gr.Row():
+                fusion_source_a = gr.Dropdown(label="Fusion source A", choices=[])
+                fusion_source_b = gr.Dropdown(label="Fusion source B", choices=[])
+            fusion_weight = gr.Slider(
+                0,
+                100,
+                value=50,
+                step=5,
+                label="Source A percentage",
+            )
+            fusion_name = gr.Textbox(
+                label="Fused capsule name",
+                placeholder="e.g. Clear Spark",
+            )
+            fusion_prompt = gr.Textbox(
+                label="Shared generation prompt",
+                placeholder="Explain the next useful experiment.",
+                lines=3,
+            )
+            fusion_voice = gr.Radio(
+                choices=["none", "source_a", "source_b", "alternate"],
+                value="none",
+                label="Speaking voice strategy",
+                info="Voices are selected from permitted sources, never mathematically blended.",
+            )
+            with gr.Row():
+                check_fusion = gr.Button("Check compatibility")
+                create_fusion = gr.Button("Generate and save fusion", elem_classes=["pc-button"])
+            fusion_status = gr.Markdown("Choose two available source capsules.")
+            fusion_response = gr.Textbox(label="Fused MiniCPM response", lines=8)
+            fusion_diagnostics = gr.JSON(label="Fusion diagnostics")
+            with gr.Row():
+                fusion_card = gr.Image(label="Fused collectible card", type="filepath")
+                fusion_social = gr.Image(label="Fused social preview", type="filepath")
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
+              <span class="pc-kicker">Blinded game evaluation · NVIDIA Nemotron</span>
+              <h3>Battle two signals on the same challenge.</h3>
+              <p>
+                MiniCPM answers once per capsule with identical settings. Nemotron
+                receives anonymous candidates, judges A/B and B/A, and returns separate
+                style, quality, adherence, and safety scores.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            with gr.Row():
+                battle_source_a = gr.Dropdown(label="Battle capsule A", choices=[])
+                battle_source_b = gr.Dropdown(label="Battle capsule B", choices=[])
+            battle_challenge = gr.Textbox(
+                label="Bounded battle challenge",
+                value=(
+                    "Explain why a small team should test the riskiest assumption "
+                    "before committing to a large launch."
+                ),
+                lines=3,
+            )
+            run_battle = gr.Button("Run blinded Nemotron battle", elem_classes=["pc-button"])
+            battle_status = gr.Markdown()
+            battle_result = gr.JSON(label="Order-swapped game result")
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
+              <span class="pc-kicker">Optional enrichment · asynchronous Modal job</span>
+              <h3>Request a Deep Capsule without risking the Quick Capsule.</h3>
+              <p>
+                Training is opt-in, idempotent, resumable, and held-out evaluated.
+                A private safe-tensor adapter attaches only when quality improves
+                without crossing the memorization threshold.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            deep_visual_lora = gr.Checkbox(
+                label="Also request optional personal visual LoRA",
+                value=False,
+                info=(
+                    "Requires a separately reviewed image dataset. Without one, the job "
+                    "trains only the writing adapter and records that no visual adapter attached."
+                ),
+            )
+            deep_idempotency_key = gr.Textbox(
+                label="Idempotency key",
+                value=f"deep-{uuid4().hex}",
+            )
+            deep_confirmation = gr.Checkbox(
+                label="I reviewed the compute estimate and want to start this Modal job.",
+                value=False,
+            )
+            with gr.Row():
+                estimate_deep = gr.Button("Estimate Deep Capsule")
+                start_deep = gr.Button("Start Deep Capsule", elem_classes=["pc-button"])
+                poll_deep = gr.Button("Refresh job status")
+                cancel_deep = gr.Button("Cancel job")
+            deep_status = gr.Markdown()
+            deep_job = gr.JSON(label="Resumable Deep Capsule state")
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
               <span class="pc-kicker">Offline proof · no provider call</span>
               <h3>Try the capsule’s shape.</h3>
               <p>
-                This deterministic preview proves the product path while the live
-                MiniCPM steering runtime is built.
+                This deterministic pre-built capsule keeps the product understandable
+                when a provider is cold, unavailable, or over its public quota.
               </p>
             </section>
             """
@@ -1309,27 +1638,45 @@ def build_demo(
             approved_capsule_state,
             capsule_selector,
         ]
+        estimate_deep.click(
+            deep_estimate_core,
+            inputs=[deep_visual_lora],
+            outputs=[deep_job, deep_status],
+        )
 
         if settings.oauth_ui_available:
 
             def load_private_library(
                 profile: gr.OAuthProfile | None,
-            ) -> tuple[str, str, object]:
+            ) -> tuple[str, str, object, object, object, object, object]:
                 principal = identity_gateway.resolve(profile)
                 voice_service.cleanup_expired(principal)
+                choices = _capsule_choices(principal, capsule_library)
+                steerable_choices = _steerable_capsule_choices(principal, capsule_library)
+                first_value = steerable_choices[0][1] if steerable_choices else None
+                second_value = steerable_choices[1][1] if len(steerable_choices) > 1 else None
                 return (
                     _account_html(principal),
                     _library_html(principal, capsule_library),
-                    gr.Dropdown(
-                        choices=_capsule_choices(principal, capsule_library),
-                        value=None,
-                    ),
+                    gr.Dropdown(choices=choices, value=None),
+                    gr.Dropdown(choices=steerable_choices, value=first_value),
+                    gr.Dropdown(choices=steerable_choices, value=second_value),
+                    gr.Dropdown(choices=steerable_choices, value=first_value),
+                    gr.Dropdown(choices=steerable_choices, value=second_value),
                 )
 
             demo.load(
                 load_private_library,
                 inputs=None,
-                outputs=[account, library, capsule_selector],
+                outputs=[
+                    account,
+                    library,
+                    capsule_selector,
+                    fusion_source_a,
+                    fusion_source_b,
+                    battle_source_a,
+                    battle_source_b,
+                ],
             )
 
             def analyze_with_oauth(
@@ -1405,6 +1752,127 @@ def build_demo(
                     vector_diagnostics,
                     live_status,
                 ],
+            )
+
+            def fusion_with_oauth(
+                first_id: str,
+                second_id: str,
+                first_percent: float,
+                prompt_value: str,
+                name: str,
+                voice_strategy: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, object, str, str, str, CapsuleRecord, str]:
+                return fusion_core(
+                    first_id,
+                    second_id,
+                    first_percent,
+                    prompt_value,
+                    name,
+                    voice_strategy,
+                    identity_gateway.resolve(profile),
+                )
+
+            def fusion_compatibility_with_oauth(
+                first_id: str,
+                second_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> str:
+                return fusion_compatibility_core(
+                    first_id,
+                    second_id,
+                    identity_gateway.resolve(profile),
+                )
+
+            def battle_with_oauth(
+                first_id: str,
+                second_id: str,
+                challenge: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, str]:
+                return battle_core(
+                    first_id,
+                    second_id,
+                    challenge,
+                    identity_gateway.resolve(profile),
+                )
+
+            def deep_start_with_oauth(
+                capsule_id: str,
+                idempotency_key: str,
+                visual_lora: bool,
+                confirmed: bool,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, str, CapsuleRecord]:
+                return deep_start_core(
+                    capsule_id,
+                    idempotency_key,
+                    visual_lora,
+                    confirmed,
+                    identity_gateway.resolve(profile),
+                )
+
+            def deep_poll_with_oauth(
+                capsule_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, str, CapsuleRecord]:
+                return deep_poll_core(capsule_id, identity_gateway.resolve(profile))
+
+            def deep_cancel_with_oauth(
+                capsule_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, str, CapsuleRecord]:
+                return deep_cancel_core(capsule_id, identity_gateway.resolve(profile))
+
+            check_fusion.click(
+                fusion_compatibility_with_oauth,
+                inputs=[fusion_source_a, fusion_source_b],
+                outputs=[fusion_status],
+            )
+            create_fusion.click(
+                fusion_with_oauth,
+                inputs=[
+                    fusion_source_a,
+                    fusion_source_b,
+                    fusion_weight,
+                    fusion_prompt,
+                    fusion_name,
+                    fusion_voice,
+                ],
+                outputs=[
+                    fusion_response,
+                    fusion_diagnostics,
+                    fusion_status,
+                    fusion_card,
+                    fusion_social,
+                    approved_capsule_state,
+                    library,
+                ],
+            )
+            run_battle.click(
+                battle_with_oauth,
+                inputs=[battle_source_a, battle_source_b, battle_challenge],
+                outputs=[battle_result, battle_status],
+            )
+            start_deep.click(
+                deep_start_with_oauth,
+                inputs=[
+                    capsule_selector,
+                    deep_idempotency_key,
+                    deep_visual_lora,
+                    deep_confirmation,
+                ],
+                outputs=[deep_job, deep_status, approved_capsule_state],
+            )
+            poll_deep.click(
+                deep_poll_with_oauth,
+                inputs=[capsule_selector],
+                outputs=[deep_job, deep_status, approved_capsule_state],
+            )
+            cancel_deep.click(
+                deep_cancel_with_oauth,
+                inputs=[capsule_selector],
+                outputs=[deep_job, deep_status, approved_capsule_state],
             )
 
             def generate_card_with_oauth(
@@ -1623,22 +2091,35 @@ def build_demo(
             )
         else:
 
-            def load_local_library() -> tuple[str, str, object]:
+            def load_local_library() -> tuple[str, str, object, object, object, object, object]:
                 principal = identity_gateway.resolve_local()
                 voice_service.cleanup_expired(principal)
+                choices = _capsule_choices(principal, capsule_library)
+                steerable_choices = _steerable_capsule_choices(principal, capsule_library)
+                first_value = steerable_choices[0][1] if steerable_choices else None
+                second_value = steerable_choices[1][1] if len(steerable_choices) > 1 else None
                 return (
                     _account_html(principal),
                     _library_html(principal, capsule_library),
-                    gr.Dropdown(
-                        choices=_capsule_choices(principal, capsule_library),
-                        value=None,
-                    ),
+                    gr.Dropdown(choices=choices, value=None),
+                    gr.Dropdown(choices=steerable_choices, value=first_value),
+                    gr.Dropdown(choices=steerable_choices, value=second_value),
+                    gr.Dropdown(choices=steerable_choices, value=first_value),
+                    gr.Dropdown(choices=steerable_choices, value=second_value),
                 )
 
             demo.load(
                 load_local_library,
                 inputs=None,
-                outputs=[account, library, capsule_selector],
+                outputs=[
+                    account,
+                    library,
+                    capsule_selector,
+                    fusion_source_a,
+                    fusion_source_b,
+                    battle_source_a,
+                    battle_source_b,
+                ],
             )
 
             def analyze_locally(
@@ -1711,6 +2192,121 @@ def build_demo(
                     vector_diagnostics,
                     live_status,
                 ],
+            )
+
+            def fusion_locally(
+                first_id: str,
+                second_id: str,
+                first_percent: float,
+                prompt_value: str,
+                name: str,
+                voice_strategy: str,
+            ) -> tuple[str, object, str, str, str, CapsuleRecord, str]:
+                return fusion_core(
+                    first_id,
+                    second_id,
+                    first_percent,
+                    prompt_value,
+                    name,
+                    voice_strategy,
+                    identity_gateway.resolve_local(),
+                )
+
+            def fusion_compatibility_locally(
+                first_id: str,
+                second_id: str,
+            ) -> str:
+                return fusion_compatibility_core(
+                    first_id,
+                    second_id,
+                    identity_gateway.resolve_local(),
+                )
+
+            def battle_locally(
+                first_id: str,
+                second_id: str,
+                challenge: str,
+            ) -> tuple[object, str]:
+                return battle_core(
+                    first_id,
+                    second_id,
+                    challenge,
+                    identity_gateway.resolve_local(),
+                )
+
+            def deep_start_locally(
+                capsule_id: str,
+                idempotency_key: str,
+                visual_lora: bool,
+                confirmed: bool,
+            ) -> tuple[object, str, CapsuleRecord]:
+                return deep_start_core(
+                    capsule_id,
+                    idempotency_key,
+                    visual_lora,
+                    confirmed,
+                    identity_gateway.resolve_local(),
+                )
+
+            def deep_poll_locally(
+                capsule_id: str,
+            ) -> tuple[object, str, CapsuleRecord]:
+                return deep_poll_core(capsule_id, identity_gateway.resolve_local())
+
+            def deep_cancel_locally(
+                capsule_id: str,
+            ) -> tuple[object, str, CapsuleRecord]:
+                return deep_cancel_core(capsule_id, identity_gateway.resolve_local())
+
+            check_fusion.click(
+                fusion_compatibility_locally,
+                inputs=[fusion_source_a, fusion_source_b],
+                outputs=[fusion_status],
+            )
+            create_fusion.click(
+                fusion_locally,
+                inputs=[
+                    fusion_source_a,
+                    fusion_source_b,
+                    fusion_weight,
+                    fusion_prompt,
+                    fusion_name,
+                    fusion_voice,
+                ],
+                outputs=[
+                    fusion_response,
+                    fusion_diagnostics,
+                    fusion_status,
+                    fusion_card,
+                    fusion_social,
+                    approved_capsule_state,
+                    library,
+                ],
+            )
+            run_battle.click(
+                battle_locally,
+                inputs=[battle_source_a, battle_source_b, battle_challenge],
+                outputs=[battle_result, battle_status],
+            )
+            start_deep.click(
+                deep_start_locally,
+                inputs=[
+                    capsule_selector,
+                    deep_idempotency_key,
+                    deep_visual_lora,
+                    deep_confirmation,
+                ],
+                outputs=[deep_job, deep_status, approved_capsule_state],
+            )
+            poll_deep.click(
+                deep_poll_locally,
+                inputs=[capsule_selector],
+                outputs=[deep_job, deep_status, approved_capsule_state],
+            )
+            cancel_deep.click(
+                deep_cancel_locally,
+                inputs=[capsule_selector],
+                outputs=[deep_job, deep_status, approved_capsule_state],
             )
 
             def generate_card_locally(

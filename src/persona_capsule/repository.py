@@ -90,6 +90,10 @@ class CapsuleRecord:
     voice_expires_at: str = ""
     voice_sample_ref: str = ""
     voice_model_id: str = ""
+    steering_recipe: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+    deep_training: dict[str, Any] | None = None
+    evaluation_results: tuple[dict[str, Any], ...] = ()
     is_published: bool = False
     public_slug: str = ""
     published_projection: dict[str, Any] | None = None
@@ -143,6 +147,10 @@ class CapsuleRecord:
             "voice_expires_at": self.voice_expires_at,
             "voice_sample_ref": self.voice_sample_ref,
             "voice_model_id": self.voice_model_id,
+            "steering_recipe": self.steering_recipe,
+            "provenance": self.provenance,
+            "deep_training": self.deep_training,
+            "evaluation_results": list(self.evaluation_results),
             "is_published": self.is_published,
             "public_slug": self.public_slug,
             "published_projection": self.published_projection,
@@ -191,6 +199,20 @@ class CapsuleRecord:
             voice_expires_at=str(payload.get("voice_expires_at", "")),
             voice_sample_ref=str(payload.get("voice_sample_ref", "")),
             voice_model_id=str(payload.get("voice_model_id", "")),
+            steering_recipe=(
+                dict(payload["steering_recipe"])
+                if payload.get("steering_recipe") is not None
+                else None
+            ),
+            provenance=(
+                dict(payload["provenance"]) if payload.get("provenance") is not None else None
+            ),
+            deep_training=(
+                dict(payload["deep_training"]) if payload.get("deep_training") is not None else None
+            ),
+            evaluation_results=tuple(
+                dict(result) for result in payload.get("evaluation_results", ())
+            ),
             is_published=bool(payload.get("is_published", False)),
             public_slug=str(payload.get("public_slug", "")),
             published_projection=(

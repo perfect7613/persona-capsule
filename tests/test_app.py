@@ -36,6 +36,24 @@ def test_health_is_ready_and_secret_safe() -> None:
             "modal": False,
             "elevenlabs": True,
         },
+        "features": {
+            "creation": True,
+            "steering": False,
+            "card": True,
+            "voice": True,
+            "fusion": False,
+            "battle": False,
+            "deep_training": False,
+        },
+        "daily_quotas": {
+            "creation": 10,
+            "steering": 20,
+            "card": 10,
+            "voice": 5,
+            "fusion": 8,
+            "battle": 6,
+            "deep_training": 2,
+        },
     }
 
 

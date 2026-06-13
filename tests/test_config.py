@@ -28,6 +28,20 @@ def test_modal_requires_both_token_parts() -> None:
     assert settings.modal_available is False
 
 
+def test_feature_switches_and_quotas_are_environment_configurable() -> None:
+    settings = Settings.from_env(
+        {
+            "ENABLE_BATTLE": "false",
+            "ENABLE_DEEP_TRAINING": "yes",
+            "QUOTA_BATTLE_DAILY": "3",
+        }
+    )
+
+    assert settings.feature_flags["battle"] is False
+    assert settings.feature_flags["deep_training"] is True
+    assert settings.quotas["battle"] == 3
+
+
 def test_local_identity_is_only_allowed_in_development_or_test() -> None:
     production = Settings.from_env(
         {

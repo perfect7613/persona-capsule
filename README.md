@@ -1,3 +1,29 @@
+---
+title: Persona Capsule
+emoji: 🧬
+colorFrom: orange
+colorTo: green
+sdk: gradio
+sdk_version: 6.0.1
+python_version: "3.12"
+app_file: app.py
+pinned: false
+hf_oauth: true
+suggested_hardware: zero-a10g
+models:
+  - openbmb/MiniCPM4.1-8B
+  - black-forest-labs/FLUX.2-klein-4B
+  - nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16
+tags:
+  - track:wood
+  - sponsor:openbmb
+  - sponsor:openai
+  - sponsor:nvidia
+  - sponsor:modal
+  - achievement:offbrand
+  - achievement:fieldnotes
+---
+
 <!-- markdownlint-disable MD013 -->
 
 # Persona Capsule
@@ -70,8 +96,12 @@ flowchart TD
     F --> H["Generate a FLUX collectible card"]
     F --> I["Optionally create a consented ElevenLabs voice"]
     F --> J["Export the capsule and compatibility manifest"]
+    F --> O["Fuse two compatible capsules"]
+    F --> P["Run a blinded Nemotron battle"]
+    F --> Q["Optionally start an asynchronous Deep Capsule"]
     H --> K["Preview exactly what will be public"]
     I --> K
+    O --> K
     K --> L["Publish an unguessable public URL"]
     L --> M["Share an X-compatible social card"]
     L --> N["Unpublish without deleting the private capsule"]
@@ -112,6 +142,9 @@ flowchart LR
         Ingestion["Consent, parsing, redaction, profile review"]
         Library["Capsule library and workflow services"]
         Steering["Steering coordinator"]
+        Fusion["Fusion engine"]
+        Battle["Battle service"]
+        Deep["Deep Capsule orchestrator"]
         Visual["Visual capsule engine"]
         Voice["Voice lifecycle service"]
         Publishing["Publishing and export services"]
@@ -125,6 +158,8 @@ flowchart LR
     subgraph ModalRuntime["Modal GPU Runtime"]
         MiniCPM["MiniCPM4.1-8B\nlive vector derivation + generation"]
         Flux["FLUX.2 Klein 4B\ncard artwork"]
+        Nemotron["Nemotron 3 Nano 4B\nblinded battle judge"]
+        Trainer["MiniCPM QLoRA\nasynchronous training"]
     end
 
     subgraph Providers["External Provider"]
@@ -139,6 +174,13 @@ flowchart LR
     Library <--> Hub
     Library --> Steering
     Steering --> MiniCPM
+    Library --> Fusion
+    Fusion --> MiniCPM
+    Library --> Battle
+    Battle --> MiniCPM
+    Battle --> Nemotron
+    Library --> Deep
+    Deep --> Trainer
     Library --> Visual
     Visual --> Flux
     Library --> Voice
@@ -182,16 +224,18 @@ personalization process.
 | FLUX card generation | Complete | Modal provider, controlled seeds, deterministic fallback |
 | Public sharing | Complete | Field preview, stable slug, Open Graph/X metadata, unpublish |
 | ElevenLabs voice lifecycle | Implemented | Real IVC, speech, retention, deletion, cleanup retries |
-| Capsule fusion | Planned | Compatible weighted steering and provenance |
-| Nemotron battle | Planned | Blinded A/B and B/A judging on Modal |
-| Deep Capsule LoRA jobs | Planned | Asynchronous evaluated training |
-| Hackathon Space deployment | In progress | Targeting the official `build-small-hackathon` organization |
+| Capsule fusion | Complete | Compatible weighted live steering, cards, voice choice, provenance |
+| Nemotron battle | Complete | Blinded A/B and B/A judging on Modal |
+| Deep Capsule LoRA jobs | Complete | Resumable asynchronous QLoRA with held-out safety gate |
+| Operational controls | Complete | Per-user quotas, kill switches, safe telemetry |
+| Hackathon Space package | Ready | OAuth/ZeroGPU metadata and guarded deployment tooling |
 
 ## Technology
 
 - **MiniCPM4.1-8B** is the primary language model and activation-steering target.
 - **Modal** hosts GPU-intensive MiniCPM and FLUX workloads.
 - **FLUX.2 Klein 4B** produces profile-derived card artwork.
+- **NVIDIA Nemotron 3 Nano 4B** judges anonymized capsule battles in both orders.
 - **ElevenLabs** provides consented Instant Voice Cloning and text-to-speech.
 - **Hugging Face OAuth** binds private capsules to their creators.
 - **Hugging Face Dataset storage** provides the deployment persistence boundary.
@@ -206,11 +250,17 @@ personalization process.
 app.py                         Hugging Face Space entry point
 modal_minicpm.py               Modal MiniCPM steering runtime
 modal_flux.py                  Modal FLUX image runtime
+modal_nemotron.py              Modal blinded battle judge
+modal_deep.py                  Modal asynchronous MiniCPM QLoRA runtime
 src/persona_capsule/
   app.py                       FastAPI composition root and public routes
   ingestion.py                 Consent, parsing, redaction, and profile draft
   steering.py                  Model compatibility and steering recipe
   steering_service.py          Owner-safe steering workflow
+  fusion.py                    Compatible weighted capsule fusion
+  battle.py                    Order-swapped Nemotron evaluation
+  deep_training.py             Resumable Deep Capsule orchestration
+  operations.py                Feature flags, quotas, safe telemetry
   card.py                      Prompt mapping and card composition
   voice.py                     Real ElevenLabs voice lifecycle
   repository.py                Canonical schema and storage adapters
@@ -218,6 +268,8 @@ src/persona_capsule/
   export.py                    .persona and compatibility exports
   ui.py                        Gradio experience
 tests/                         Unit and provider-contract tests
+scripts/                       Deployment and submission checks
+docs/                          Demo, deployment, and acceptance guides
 PRD.md                         Approved product requirements
 PLAN_AUDIT.md                  Original-plan technical audit
 CODEX_USAGE.md                 Public Codex development record
@@ -272,6 +324,7 @@ anonymous production login.
 | `APP_ENV` | `development`, `test`, or production environment label |
 | `HF_TOKEN` | Hugging Face API access and local OAuth availability |
 | `HF_CAPSULE_REPO_ID` | Private Dataset repository used for durable capsules |
+| `SPACE_HF_SERVICE_TOKEN` | Rotated service token installed as a Space/Modal secret |
 | `MODAL_TOKEN_ID` | Modal authentication ID |
 | `MODAL_TOKEN_SECRET` | Modal authentication secret |
 | `ELEVENLABS_API_KEY` | Real Instant Voice Cloning and text-to-speech |
@@ -281,22 +334,32 @@ anonymous production login.
 | `PUBLIC_BASE_URL` | Canonical base URL used in public share metadata |
 | `PERSONA_LOCAL_IDENTITY` | Enables the development-only identity adapter |
 | `PERSONA_LOCAL_HF_USERNAME` | Username used by that local adapter |
+| `ENABLE_*` | Administrative kill switches for provider-backed features |
+| `QUOTA_*_DAILY` | Per-user daily limits for costly operations |
+| `HF_DEEP_REPO_PREFIX` | Prefix for private Deep Capsule adapter repositories |
 
 Never commit `.env`. Credentials previously exposed in chat, logs, screenshots,
 or issues must be rotated before deployment.
 
 ## Deploy Modal Runtimes
 
-Authenticate with rotated Modal credentials, then deploy the independent GPU
-services:
+After rotating every credential previously shared in chat or logs, set
+`CONFIRM_CREDENTIALS_ROTATED=true` and run:
 
 ```bash
-uv run modal deploy modal_minicpm.py
-uv run modal deploy modal_flux.py
+./scripts/deploy_modal.sh
 ```
 
-Keeping the language and image runtimes separate prevents both large models
-from occupying GPU memory at the same time.
+To create/update the official public Space without printing secrets:
+
+```bash
+uv run python scripts/deploy_space.py --dry-run
+uv run python scripts/deploy_space.py
+```
+
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the exact secret and release
+procedure. The scripts intentionally refuse to deploy until credential rotation
+is explicitly confirmed.
 
 ## Quality Checks
 
@@ -305,6 +368,7 @@ uv run ruff format --check .
 uv run ruff check .
 uv run pytest
 uv lock --check
+uv run python scripts/check_submission.py
 ```
 
 GitHub Actions runs the same format, lint, and test checks on pushes and pull
@@ -320,6 +384,8 @@ Persona Capsule is designed so optional providers fail independently:
 - Failed voice deletion becomes a visible retryable cleanup state.
 - Publishing and unpublishing do not modify the private source profile.
 - Quick Capsules remain usable even if future Deep Capsule training fails.
+- Nemotron and Deep Capsule queue states remain visible and resumable.
+- Provider kill switches stop new costly work without affecting saved capsules.
 
 ## Hackathon Positioning
 
@@ -335,7 +401,7 @@ The project demonstrates meaningful use of:
 - **Modal** for GPU model execution;
 - **Black Forest Labs FLUX** for collectible visual identity;
 - **ElevenLabs** for consented synthetic voice;
-- **NVIDIA Nemotron** in the planned blinded battle evaluator;
+- **NVIDIA Nemotron** in the live blinded, order-swapped battle evaluator;
 - **OpenAI Codex** as an attributed engineering collaborator.
 
 ## Built With Codex
@@ -361,7 +427,7 @@ for public evidence.
 - Voice cloning requires the speaker's ownership or explicit permission.
 - Public sharing exposes only selected fields, but users must still review the
   preview carefully.
-- Model outputs and future battle scores are generated feedback, not objective
+- Model outputs and battle scores are generated feedback, not objective
   judgments about a person.
 
 ## Project Links
@@ -372,3 +438,13 @@ for public evidence.
 - [Technical plan audit](./PLAN_AUDIT.md)
 - [Image fine-tuning branch audit](./docs/IMAGE_FINETUNE_BRANCH_AUDIT.md)
 - [Codex usage record](./CODEX_USAGE.md)
+- [Target Hugging Face Space](https://huggingface.co/spaces/build-small-hackathon/persona-capsule)
+- [Demo script](./docs/DEMO_SCRIPT.md)
+- [Manual acceptance checklist](./docs/MANUAL_ACCEPTANCE.md)
+
+The final public demo-video URL and X/social-post URL are intentionally added
+only after project-owner review. `scripts/check_submission.py --strict` blocks
+final submission until both are present.
+
+- Demo video: Pending project-owner review
+- Social post: Pending project-owner review

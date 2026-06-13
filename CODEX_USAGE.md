@@ -16,7 +16,14 @@ Codex has been used to:
 - define privacy, consent, deletion, authentication, and sharing behavior;
 - write and review the complete product requirements document;
 - establish the GitHub repository and canonical PRD issue;
-- implement, test, document, and deploy the application in later commits.
+- implement request-scoped MiniCPM activation extraction and hook cleanup;
+- implement owner-scoped capsule storage, export, publishing, and deletion;
+- integrate real FLUX and ElevenLabs provider lifecycles with safe fallbacks;
+- implement weighted capsule fusion with exact recipe compatibility;
+- implement blinded A/B and B/A Nemotron battles on Modal;
+- implement resumable, evaluated MiniCPM QLoRA Deep Capsule jobs;
+- add provider kill switches, per-user quotas, privacy-safe telemetry, tests,
+  deployment tooling, and hackathon submission documentation.
 
 ## Commit Attribution
 

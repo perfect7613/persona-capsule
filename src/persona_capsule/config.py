@@ -23,12 +23,32 @@ class Settings:
     hf_capsule_repo_id: str = ""
     public_base_url: str = "http://127.0.0.1:7860"
     voice_temporary_hours: int = 24
+    enable_creation: bool = True
+    enable_steering: bool = True
+    enable_card: bool = True
+    enable_voice: bool = True
+    enable_fusion: bool = True
+    enable_battle: bool = True
+    enable_deep_training: bool = True
+    quota_steering_daily: int = 20
+    quota_creation_daily: int = 10
+    quota_card_daily: int = 10
+    quota_voice_daily: int = 5
+    quota_fusion_daily: int = 8
+    quota_battle_daily: int = 6
+    quota_deep_training_daily: int = 2
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
         if environ is None:
             load_dotenv()
             environ = os.environ
+
+        def enabled(name: str, default: str = "true") -> bool:
+            return environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+        def quota(name: str, default: int) -> int:
+            return max(0, int(environ.get(name, str(default))))
 
         return cls(
             app_env=environ.get("APP_ENV", "development").strip() or "development",
@@ -56,6 +76,20 @@ class Settings:
                 1,
                 int(environ.get("VOICE_TEMPORARY_HOURS", "24")),
             ),
+            enable_creation=enabled("ENABLE_CREATION"),
+            enable_steering=enabled("ENABLE_STEERING"),
+            enable_card=enabled("ENABLE_CARD"),
+            enable_voice=enabled("ENABLE_VOICE"),
+            enable_fusion=enabled("ENABLE_FUSION"),
+            enable_battle=enabled("ENABLE_BATTLE"),
+            enable_deep_training=enabled("ENABLE_DEEP_TRAINING"),
+            quota_steering_daily=quota("QUOTA_STEERING_DAILY", 20),
+            quota_creation_daily=quota("QUOTA_CREATION_DAILY", 10),
+            quota_card_daily=quota("QUOTA_CARD_DAILY", 10),
+            quota_voice_daily=quota("QUOTA_VOICE_DAILY", 5),
+            quota_fusion_daily=quota("QUOTA_FUSION_DAILY", 8),
+            quota_battle_daily=quota("QUOTA_BATTLE_DAILY", 6),
+            quota_deep_training_daily=quota("QUOTA_DEEP_TRAINING_DAILY", 2),
         )
 
     @property
@@ -77,3 +111,27 @@ class Settings:
     @property
     def oauth_ui_available(self) -> bool:
         return self.space_environment or self.local_oauth_available
+
+    @property
+    def feature_flags(self) -> dict[str, bool]:
+        return {
+            "creation": self.enable_creation,
+            "steering": self.enable_steering,
+            "card": self.enable_card,
+            "voice": self.enable_voice,
+            "fusion": self.enable_fusion,
+            "battle": self.enable_battle,
+            "deep_training": self.enable_deep_training,
+        }
+
+    @property
+    def quotas(self) -> dict[str, int]:
+        return {
+            "creation": self.quota_creation_daily,
+            "steering": self.quota_steering_daily,
+            "card": self.quota_card_daily,
+            "voice": self.quota_voice_daily,
+            "fusion": self.quota_fusion_daily,
+            "battle": self.quota_battle_daily,
+            "deep_training": self.quota_deep_training_daily,
+        }
