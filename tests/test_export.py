@@ -40,6 +40,7 @@ def test_default_export_excludes_private_data_and_activation_tensors() -> None:
     assert manifest["steering_recipe"]["model_id"] == MODEL_ID
     assert manifest["steering_recipe"]["model_revision"] == MODEL_REVISION
     assert manifest["security"]["serialized_activation_tensor"] is False
+    assert manifest["visual_recipe"]["model_id"] == ""
     assert manifest["persona_sha256"]
     assert "/Users/" not in serialized.decode()
     assert "private/card.png" not in serialized.decode()

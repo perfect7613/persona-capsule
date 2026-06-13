@@ -69,6 +69,13 @@ def build_capsule_export(
         "capsule_id": record.capsule_id,
         "persona_sha256": sha256(persona_bytes).hexdigest(),
         "steering_recipe": recipe.as_dict(),
+        "visual_recipe": {
+            "provider": record.card_provider,
+            "model_id": record.card_model_id,
+            "model_revision": record.card_model_revision,
+            "prompt_hash": record.card_prompt_hash,
+            "seed": record.card_seed,
+        },
         "exemplar_integrity": {
             "count": len(record.exemplar_pairs),
             "pair_hashes": [pair.pair_hash for pair in record.exemplar_pairs],

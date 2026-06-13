@@ -1428,6 +1428,7 @@ dependencies = [
     { name = "gradio", extra = ["oauth"] },
     { name = "huggingface-hub" },
     { name = "modal" },
+    { name = "pillow" },
     { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -1446,6 +1447,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
     { name = "huggingface-hub", specifier = ">=1.0,<2" },
     { name = "modal", specifier = ">=1.5,<2" },
+    { name = "pillow", specifier = ">=12,<13" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
     { name = "python-dotenv", specifier = ">=1.0,<2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11,<1" },

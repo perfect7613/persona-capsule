@@ -75,6 +75,13 @@ class CapsuleRecord:
     public_projection: CapsulePublicProjection | None = None
     artifact_refs: tuple[str, ...] = ()
     pending_cleanup_refs: tuple[str, ...] = ()
+    card_image_ref: str = ""
+    social_image_ref: str = ""
+    card_seed: int | None = None
+    card_prompt_hash: str = ""
+    card_provider: str = ""
+    card_model_id: str = ""
+    card_model_revision: str = ""
     created_at: str = ""
     updated_at: str = ""
 
@@ -109,6 +116,13 @@ class CapsuleRecord:
             ),
             "artifact_refs": list(self.artifact_refs),
             "pending_cleanup_refs": list(self.pending_cleanup_refs),
+            "card_image_ref": self.card_image_ref,
+            "social_image_ref": self.social_image_ref,
+            "card_seed": self.card_seed,
+            "card_prompt_hash": self.card_prompt_hash,
+            "card_provider": self.card_provider,
+            "card_model_id": self.card_model_id,
+            "card_model_revision": self.card_model_revision,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -138,6 +152,13 @@ class CapsuleRecord:
             ),
             artifact_refs=tuple(map(str, payload.get("artifact_refs", ()))),
             pending_cleanup_refs=tuple(map(str, payload.get("pending_cleanup_refs", ()))),
+            card_image_ref=str(payload.get("card_image_ref", "")),
+            social_image_ref=str(payload.get("social_image_ref", "")),
+            card_seed=(int(payload["card_seed"]) if payload.get("card_seed") is not None else None),
+            card_prompt_hash=str(payload.get("card_prompt_hash", "")),
+            card_provider=str(payload.get("card_provider", "")),
+            card_model_id=str(payload.get("card_model_id", "")),
+            card_model_revision=str(payload.get("card_model_revision", "")),
             created_at=str(payload.get("created_at", "")),
             updated_at=str(payload.get("updated_at", "")),
         )

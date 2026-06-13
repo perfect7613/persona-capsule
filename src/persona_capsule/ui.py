@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import gradio as gr
 
+from persona_capsule.card import CapsuleCardService
 from persona_capsule.config import Settings
 from persona_capsule.demo import DEMO_CAPSULE, demo_reply
 from persona_capsule.export import build_capsule_export
@@ -520,6 +521,7 @@ def build_demo(
     identity_gateway: IdentityGateway,
     capsule_library: CapsuleLibrary,
     steering_service: CapsuleSteeringService,
+    card_service: CapsuleCardService,
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
 
@@ -637,6 +639,40 @@ def build_demo(
         if warning:
             status = f"**Quality warning:** {escape(str(warning))}\n\n{status}"
         return result["baseline"], result["steered"], diagnostics, status
+
+    def generate_card_core(
+        capsule_id: str,
+        variation: str,
+        seed: float,
+        principal: Principal | None,
+    ) -> tuple[str, str, str, CapsuleRecord]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before generating card art.")
+        if not capsule_id:
+            raise gr.Error("Approve or open a capsule before generating its card.")
+        try:
+            result = card_service.generate(
+                principal,
+                capsule_id,
+                variation=variation,
+                seed=int(seed),
+            )
+        except (KeyError, PermissionError, ValueError) as exc:
+            raise gr.Error(str(exc)) from exc
+        provider_label = (
+            "deterministic fallback" if result.used_fallback else "FLUX.2 Klein 4B on Modal"
+        )
+        status = (
+            f"Generated **{escape(result.record.name)}** using **{provider_label}**. "
+            f"Variation: **{result.prompt.variation}** · seed: **{result.prompt.seed}**. "
+            "The approved profile was not modified."
+        )
+        return (
+            str(result.interactive_path),
+            str(result.social_path),
+            status,
+            result.record,
+        )
 
     def open_capsule_core(
         capsule_id: str,
@@ -851,6 +887,44 @@ def build_demo(
         gr.HTML(
             """
             <section class="pc-demo-title">
+              <span class="pc-kicker">Collectible identity · FLUX.2 Klein</span>
+              <h3>Turn the profile into an object.</h3>
+              <p>
+                The visual prompt uses only approved profile dimensions and mapped
+                public descriptors. Private messages and evidence never enter it.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            with gr.Row():
+                card_variation = gr.Dropdown(
+                    choices=["signal", "archive", "kinetic"],
+                    value="signal",
+                    label="Controlled variation",
+                )
+                card_seed = gr.Number(
+                    value=7613,
+                    precision=0,
+                    label="Visual seed",
+                )
+            generate_card = gr.Button(
+                "Generate collectible card",
+                elem_classes=["pc-button"],
+            )
+            card_status = gr.Markdown()
+            with gr.Row():
+                interactive_card = gr.Image(
+                    label="Interactive card · 768×1024",
+                    type="filepath",
+                )
+                social_card = gr.Image(
+                    label="Social preview · 1200×628",
+                    type="filepath",
+                )
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
               <span class="pc-kicker">Live inference · MiniCPM4.1-8B on Modal</span>
               <h3>See the steering vector work.</h3>
               <p>
@@ -1042,6 +1116,30 @@ def build_demo(
                 ],
             )
 
+            def generate_card_with_oauth(
+                capsule_id: str,
+                variation: str,
+                seed: float,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str, str, CapsuleRecord]:
+                return generate_card_core(
+                    capsule_id,
+                    variation,
+                    seed,
+                    identity_gateway.resolve(profile),
+                )
+
+            generate_card.click(
+                generate_card_with_oauth,
+                inputs=[capsule_selector, card_variation, card_seed],
+                outputs=[
+                    interactive_card,
+                    social_card,
+                    card_status,
+                    approved_capsule_state,
+                ],
+            )
+
             def principal_from_oauth(
                 profile: gr.OAuthProfile | None,
             ) -> Principal | None:
@@ -1188,6 +1286,29 @@ def build_demo(
                     steered_output,
                     vector_diagnostics,
                     live_status,
+                ],
+            )
+
+            def generate_card_locally(
+                capsule_id: str,
+                variation: str,
+                seed: float,
+            ) -> tuple[str, str, str, CapsuleRecord]:
+                return generate_card_core(
+                    capsule_id,
+                    variation,
+                    seed,
+                    identity_gateway.resolve_local(),
+                )
+
+            generate_card.click(
+                generate_card_locally,
+                inputs=[capsule_selector, card_variation, card_seed],
+                outputs=[
+                    interactive_card,
+                    social_card,
+                    card_status,
+                    approved_capsule_state,
                 ],
             )
 

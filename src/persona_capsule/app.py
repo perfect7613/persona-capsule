@@ -6,7 +6,9 @@ import gradio as gr
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 
+from persona_capsule.card import ArtProvider, CapsuleCardService
 from persona_capsule.config import Settings
+from persona_capsule.flux_gateway import ModalFluxArtGateway
 from persona_capsule.identity import IdentityGateway
 from persona_capsule.library import CapsuleLibrary
 from persona_capsule.modal_gateway import ModalSteeringGateway
@@ -20,6 +22,7 @@ def create_app(
     settings: Settings | None = None,
     repository: CapsuleRepository | None = None,
     steering_gateway: SteeringGateway | None = None,
+    art_provider: ArtProvider | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     if repository is None:
@@ -33,6 +36,17 @@ def create_app(
     steering_service = CapsuleSteeringService(
         capsule_library,
         steering_gateway or ModalSteeringGateway(),
+    )
+    card_service = CapsuleCardService(
+        capsule_library,
+        settings.capsule_data_dir,
+        primary_provider=(
+            art_provider
+            if art_provider is not None
+            else ModalFluxArtGateway()
+            if settings.modal_available
+            else None
+        ),
     )
     app = FastAPI(
         title="Persona Capsule",
@@ -78,6 +92,7 @@ def create_app(
             identity_gateway,
             capsule_library,
             steering_service,
+            card_service,
         ),
         path="/app",
         footer_links=[],
