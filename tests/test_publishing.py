@@ -48,6 +48,12 @@ def _record() -> CapsuleRecord:
         source_fingerprint="source-v1",
         social_image_ref="card/card-social.png",
         card_image_ref="card/card-interactive.png",
+        voice_provider="elevenlabs",
+        voice_id="private-provider-id",
+        voice_status="ready",
+        voice_retention="retained",
+        voice_sample_ref="voice/voice-signature.mp3",
+        voice_model_id="eleven_multilingual_v2",
     )
 
 
@@ -59,6 +65,7 @@ def _service(tmp_path: Path):
     image_path = tmp_path / "artifacts" / owner_namespace / saved.capsule_id / "card-social.png"
     image_path.parent.mkdir(parents=True)
     Image.new("RGB", (1200, 628), "black").save(image_path)
+    (image_path.parent / "voice-signature.mp3").write_bytes(b"synthetic-audio")
     service = PublishingService(
         library,
         repository,
@@ -110,6 +117,7 @@ def test_public_routes_render_crawler_metadata_and_unpublish(
             include_descriptors=True,
             include_dimensions=False,
             include_card=True,
+            include_voice_sample=True,
         ),
         confirmed=True,
     )
@@ -126,15 +134,20 @@ def test_public_routes_render_crawler_metadata_and_unpublish(
     with TestClient(app) as client:
         page = client.get(f"/c/{published.public_slug}")
         image = client.get(f"/c/{published.public_slug}/image")
+        audio = client.get(f"/c/{published.public_slug}/audio")
 
     assert page.status_code == 200
     assert image.status_code == 200
+    assert audio.status_code == 200
     assert image.headers["content-type"] == "image/png"
+    assert audio.headers["content-type"] == "audio/mpeg"
     assert 'property="og:title"' in page.text
     assert 'property="og:image"' in page.text
     assert 'name="twitter:card" content="summary_large_image"' in page.text
     assert f"https://capsules.example/c/{published.public_slug}" in page.text
     assert "https://x.com/intent/post" in page.text
+    assert "Synthetic voice" in page.text
+    assert "private-provider-id" not in page.text
     assert PRIVATE_SENTINEL not in page.text
     assert OWNER.user_id not in page.text
     assert "private tendency" not in page.text

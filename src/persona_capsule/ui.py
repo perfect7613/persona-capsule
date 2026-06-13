@@ -23,6 +23,7 @@ from persona_capsule.publishing import PublishingService, PublishSelection
 from persona_capsule.repository import CapsuleRecord
 from persona_capsule.steering import SteeringError
 from persona_capsule.steering_service import CapsuleSteeringService
+from persona_capsule.voice import CapsuleVoiceService, VoiceError
 
 CSS = """
 :root {
@@ -524,6 +525,7 @@ def build_demo(
     steering_service: CapsuleSteeringService,
     card_service: CapsuleCardService,
     publishing_service: PublishingService,
+    voice_service: CapsuleVoiceService,
 ) -> gr.Blocks:
     """Build the public app shell and deterministic demo path."""
 
@@ -676,17 +678,88 @@ def build_demo(
             result.record,
         )
 
+    def create_voice_core(
+        capsule_id: str,
+        audio_path: str | None,
+        signature_text: str,
+        consented: bool,
+        retention: str,
+        principal: Principal | None,
+    ) -> tuple[str, str, CapsuleRecord]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before creating a voice clone.")
+        if not capsule_id:
+            raise gr.Error("Approve or open a capsule before creating its voice.")
+        try:
+            result = voice_service.create_clone(
+                principal,
+                capsule_id,
+                [audio_path] if audio_path else [],
+                signature_text,
+                consented=consented,
+                retention=retention,
+            )
+        except (KeyError, PermissionError, VoiceError) as exc:
+            raise gr.Error(str(exc)) from exc
+        lifecycle = (
+            f"temporary for {settings.voice_temporary_hours} hours"
+            if retention == "temporary"
+            else "retained privately until explicit deletion"
+        )
+        return (
+            str(result.audio_path),
+            (
+                f"Created a real ElevenLabs Instant Voice Clone for "
+                f"**{escape(result.record.name)}**. The clone is {lifecycle}. "
+                "Generated audio is synthetic."
+            ),
+            result.record,
+        )
+
+    def synthesize_voice_core(
+        capsule_id: str,
+        speech_text: str,
+        principal: Principal | None,
+    ) -> tuple[str, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before generating speech.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule with a voice.")
+        try:
+            output = voice_service.synthesize(principal, capsule_id, speech_text)
+        except (KeyError, PermissionError, VoiceError) as exc:
+            raise gr.Error(str(exc)) from exc
+        return str(output), "Generated with the private ElevenLabs clone. This audio is synthetic."
+
+    def delete_voice_core(
+        capsule_id: str,
+        principal: Principal | None,
+    ) -> tuple[None, str, CapsuleRecord]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before deleting a voice.")
+        if not capsule_id:
+            raise gr.Error("Choose a capsule with a voice.")
+        try:
+            record = voice_service.delete_voice(principal, capsule_id)
+        except (KeyError, PermissionError, VoiceError) as exc:
+            raise gr.Error(
+                f"{exc} Cleanup is recorded and can be retried without losing the capsule."
+            ) from exc
+        return None, "ElevenLabs voice deleted. The text capsule remains available.", record
+
     def publish_selection(
         include_summary: bool,
         include_descriptors: bool,
         include_dimensions: bool,
         include_card: bool,
+        include_voice_sample: bool,
     ) -> PublishSelection:
         return PublishSelection(
             include_summary=include_summary,
             include_descriptors=include_descriptors,
             include_dimensions=include_dimensions,
             include_card=include_card,
+            include_voice_sample=include_voice_sample,
         )
 
     def preview_publish_core(
@@ -695,6 +768,7 @@ def build_demo(
         include_descriptors: bool,
         include_dimensions: bool,
         include_card: bool,
+        include_voice_sample: bool,
         principal: Principal | None,
     ) -> tuple[object, str]:
         if principal is None:
@@ -710,6 +784,7 @@ def build_demo(
                     include_descriptors,
                     include_dimensions,
                     include_card,
+                    include_voice_sample,
                 ),
             )
         except (KeyError, ValueError) as exc:
@@ -722,6 +797,7 @@ def build_demo(
         include_descriptors: bool,
         include_dimensions: bool,
         include_card: bool,
+        include_voice_sample: bool,
         confirmed: bool,
         principal: Principal | None,
     ) -> tuple[str, CapsuleRecord]:
@@ -738,6 +814,7 @@ def build_demo(
                     include_descriptors,
                     include_dimensions,
                     include_card,
+                    include_voice_sample,
                 ),
                 confirmed=confirmed,
             )
@@ -827,13 +904,29 @@ def build_demo(
         capsule_id: str,
         confirmed: bool,
         principal: Principal | None,
-    ) -> tuple[str, str, object, None]:
+    ) -> tuple[str, str, object, CapsuleRecord | None]:
         if principal is None:
             raise gr.Error("Sign in with Hugging Face before deleting a capsule.")
         if not capsule_id:
             raise gr.Error("Choose a capsule to delete.")
         if not confirmed:
             raise gr.Error("Confirm permanent deletion first.")
+        try:
+            voice_service.delete_voice(principal, capsule_id)
+        except VoiceError as exc:
+            record = capsule_library.get_capsule(principal, capsule_id)
+            return (
+                (
+                    f"Capsule deletion is paused: {escape(str(exc))} "
+                    "The ElevenLabs cleanup is recorded; retry deletion later."
+                ),
+                _library_html(principal, capsule_library),
+                gr.Dropdown(
+                    choices=_capsule_choices(principal, capsule_library),
+                    value=capsule_id,
+                ),
+                record,
+            )
         deleted = capsule_library.delete_capsule(principal, capsule_id)
         cache_status = "Warm steering cache invalidated."
         try:
@@ -1019,6 +1112,61 @@ def build_demo(
         gr.HTML(
             """
             <section class="pc-demo-title">
+              <span class="pc-kicker">Consented voice · ElevenLabs IVC</span>
+              <h3>Let the capsule speak.</h3>
+              <p>
+                Use only your own voice or a recording you have explicit permission
+                to clone. Record at least 30 clear seconds in a quiet room, with one
+                speaker and no music. Source audio is used for the provider request
+                and is not added to the capsule record.
+              </p>
+            </section>
+            """
+        )
+        with gr.Group(elem_classes=["pc-controls"]):
+            voice_audio = gr.Audio(
+                sources=["upload", "microphone"],
+                type="filepath",
+                label="Authorized voice recording",
+            )
+            voice_consent = gr.Checkbox(
+                label="I own this voice or have explicit permission to clone it.",
+                value=False,
+            )
+            voice_retention = gr.Radio(
+                choices=["temporary", "retained"],
+                value="temporary",
+                label="Clone lifecycle",
+                info=(
+                    f"Temporary clones expire after {settings.voice_temporary_hours} hours. "
+                    "Retained clones stay private until deletion."
+                ),
+            )
+            signature_line = gr.Textbox(
+                label="Signature line",
+                value="Small steps, clear signal, real momentum.",
+                lines=2,
+            )
+            create_voice = gr.Button(
+                "Create real ElevenLabs voice",
+                elem_classes=["pc-button"],
+            )
+            voice_status = gr.Markdown()
+            voice_output = gr.Audio(
+                label="Synthetic capsule speech",
+                type="filepath",
+            )
+            speech_text = gr.Textbox(
+                label="Speak another response",
+                placeholder="Enter up to 1000 characters for the capsule to read.",
+                lines=3,
+            )
+            with gr.Row():
+                synthesize_voice = gr.Button("Generate synthetic speech")
+                delete_voice = gr.Button("Delete ElevenLabs voice")
+        gr.HTML(
+            """
+            <section class="pc-demo-title">
               <span class="pc-kicker">Public projection · private source</span>
               <h3>Choose exactly what travels.</h3>
               <p>
@@ -1046,6 +1194,10 @@ def build_demo(
                 publish_card = gr.Checkbox(
                     label="Public social card",
                     value=True,
+                )
+                publish_voice = gr.Checkbox(
+                    label="Public synthetic voice sample",
+                    value=False,
                 )
             preview_publish = gr.Button("Preview public projection")
             public_preview = gr.JSON(label="Fields visible without login")
@@ -1164,6 +1316,7 @@ def build_demo(
                 profile: gr.OAuthProfile | None,
             ) -> tuple[str, str, object]:
                 principal = identity_gateway.resolve(profile)
+                voice_service.cleanup_expired(principal)
                 return (
                     _account_html(principal),
                     _library_html(principal, capsule_library),
@@ -1278,12 +1431,72 @@ def build_demo(
                 ],
             )
 
+            def create_voice_with_oauth(
+                capsule_id: str,
+                audio_path: str | None,
+                text: str,
+                consented: bool,
+                retention: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str, CapsuleRecord]:
+                return create_voice_core(
+                    capsule_id,
+                    audio_path,
+                    text,
+                    consented,
+                    retention,
+                    identity_gateway.resolve(profile),
+                )
+
+            def synthesize_voice_with_oauth(
+                capsule_id: str,
+                text: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[str, str]:
+                return synthesize_voice_core(
+                    capsule_id,
+                    text,
+                    identity_gateway.resolve(profile),
+                )
+
+            def delete_voice_with_oauth(
+                capsule_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[None, str, CapsuleRecord]:
+                return delete_voice_core(
+                    capsule_id,
+                    identity_gateway.resolve(profile),
+                )
+
+            create_voice.click(
+                create_voice_with_oauth,
+                inputs=[
+                    capsule_selector,
+                    voice_audio,
+                    signature_line,
+                    voice_consent,
+                    voice_retention,
+                ],
+                outputs=[voice_output, voice_status, approved_capsule_state],
+            )
+            synthesize_voice.click(
+                synthesize_voice_with_oauth,
+                inputs=[capsule_selector, speech_text],
+                outputs=[voice_output, voice_status],
+            )
+            delete_voice.click(
+                delete_voice_with_oauth,
+                inputs=[capsule_selector],
+                outputs=[voice_output, voice_status, approved_capsule_state],
+            )
+
             def preview_publish_with_oauth(
                 capsule_id: str,
                 summary: bool,
                 descriptors: bool,
                 dimensions: bool,
                 card: bool,
+                voice: bool,
                 profile: gr.OAuthProfile | None,
             ) -> tuple[object, str]:
                 return preview_publish_core(
@@ -1292,6 +1505,7 @@ def build_demo(
                     descriptors,
                     dimensions,
                     card,
+                    voice,
                     identity_gateway.resolve(profile),
                 )
 
@@ -1301,6 +1515,7 @@ def build_demo(
                 descriptors: bool,
                 dimensions: bool,
                 card: bool,
+                voice: bool,
                 confirmed: bool,
                 profile: gr.OAuthProfile | None,
             ) -> tuple[str, CapsuleRecord]:
@@ -1310,6 +1525,7 @@ def build_demo(
                     descriptors,
                     dimensions,
                     card,
+                    voice,
                     confirmed,
                     identity_gateway.resolve(profile),
                 )
@@ -1329,6 +1545,7 @@ def build_demo(
                 publish_descriptors,
                 publish_dimensions,
                 publish_card,
+                publish_voice,
             ]
             preview_publish.click(
                 preview_publish_with_oauth,
@@ -1408,6 +1625,7 @@ def build_demo(
 
             def load_local_library() -> tuple[str, str, object]:
                 principal = identity_gateway.resolve_local()
+                voice_service.cleanup_expired(principal)
                 return (
                     _account_html(principal),
                     _library_html(principal, capsule_library),
@@ -1518,12 +1736,69 @@ def build_demo(
                 ],
             )
 
+            def create_voice_locally(
+                capsule_id: str,
+                audio_path: str | None,
+                text: str,
+                consented: bool,
+                retention: str,
+            ) -> tuple[str, str, CapsuleRecord]:
+                return create_voice_core(
+                    capsule_id,
+                    audio_path,
+                    text,
+                    consented,
+                    retention,
+                    identity_gateway.resolve_local(),
+                )
+
+            def synthesize_voice_locally(
+                capsule_id: str,
+                text: str,
+            ) -> tuple[str, str]:
+                return synthesize_voice_core(
+                    capsule_id,
+                    text,
+                    identity_gateway.resolve_local(),
+                )
+
+            def delete_voice_locally(
+                capsule_id: str,
+            ) -> tuple[None, str, CapsuleRecord]:
+                return delete_voice_core(
+                    capsule_id,
+                    identity_gateway.resolve_local(),
+                )
+
+            create_voice.click(
+                create_voice_locally,
+                inputs=[
+                    capsule_selector,
+                    voice_audio,
+                    signature_line,
+                    voice_consent,
+                    voice_retention,
+                ],
+                outputs=[voice_output, voice_status, approved_capsule_state],
+            )
+            synthesize_voice.click(
+                synthesize_voice_locally,
+                inputs=[capsule_selector, speech_text],
+                outputs=[voice_output, voice_status],
+            )
+            delete_voice.click(
+                delete_voice_locally,
+                inputs=[capsule_selector],
+                outputs=[voice_output, voice_status, approved_capsule_state],
+            )
+
             def preview_publish_locally(
                 capsule_id: str,
                 summary: bool,
                 descriptors: bool,
                 dimensions: bool,
                 card: bool,
+                voice: bool,
             ) -> tuple[object, str]:
                 return preview_publish_core(
                     capsule_id,
@@ -1531,6 +1806,7 @@ def build_demo(
                     descriptors,
                     dimensions,
                     card,
+                    voice,
                     identity_gateway.resolve_local(),
                 )
 
@@ -1540,6 +1816,7 @@ def build_demo(
                 descriptors: bool,
                 dimensions: bool,
                 card: bool,
+                voice: bool,
                 confirmed: bool,
             ) -> tuple[str, CapsuleRecord]:
                 return publish_core(
@@ -1548,6 +1825,7 @@ def build_demo(
                     descriptors,
                     dimensions,
                     card,
+                    voice,
                     confirmed,
                     identity_gateway.resolve_local(),
                 )
@@ -1566,6 +1844,7 @@ def build_demo(
                 publish_descriptors,
                 publish_dimensions,
                 publish_card,
+                publish_voice,
             ]
             preview_publish.click(
                 preview_publish_locally,

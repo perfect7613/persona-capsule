@@ -82,6 +82,14 @@ class CapsuleRecord:
     card_provider: str = ""
     card_model_id: str = ""
     card_model_revision: str = ""
+    voice_provider: str = ""
+    voice_id: str = ""
+    voice_status: str = ""
+    voice_retention: str = ""
+    voice_consent_at: str = ""
+    voice_expires_at: str = ""
+    voice_sample_ref: str = ""
+    voice_model_id: str = ""
     is_published: bool = False
     public_slug: str = ""
     published_projection: dict[str, Any] | None = None
@@ -127,6 +135,14 @@ class CapsuleRecord:
             "card_provider": self.card_provider,
             "card_model_id": self.card_model_id,
             "card_model_revision": self.card_model_revision,
+            "voice_provider": self.voice_provider,
+            "voice_id": self.voice_id,
+            "voice_status": self.voice_status,
+            "voice_retention": self.voice_retention,
+            "voice_consent_at": self.voice_consent_at,
+            "voice_expires_at": self.voice_expires_at,
+            "voice_sample_ref": self.voice_sample_ref,
+            "voice_model_id": self.voice_model_id,
             "is_published": self.is_published,
             "public_slug": self.public_slug,
             "published_projection": self.published_projection,
@@ -167,6 +183,14 @@ class CapsuleRecord:
             card_provider=str(payload.get("card_provider", "")),
             card_model_id=str(payload.get("card_model_id", "")),
             card_model_revision=str(payload.get("card_model_revision", "")),
+            voice_provider=str(payload.get("voice_provider", "")),
+            voice_id=str(payload.get("voice_id", "")),
+            voice_status=str(payload.get("voice_status", "")),
+            voice_retention=str(payload.get("voice_retention", "")),
+            voice_consent_at=str(payload.get("voice_consent_at", "")),
+            voice_expires_at=str(payload.get("voice_expires_at", "")),
+            voice_sample_ref=str(payload.get("voice_sample_ref", "")),
+            voice_model_id=str(payload.get("voice_model_id", "")),
             is_published=bool(payload.get("is_published", False)),
             public_slug=str(payload.get("public_slug", "")),
             published_projection=(

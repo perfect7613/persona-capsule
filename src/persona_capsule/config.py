@@ -22,6 +22,7 @@ class Settings:
     capsule_data_dir: str = ".persona-capsule-data"
     hf_capsule_repo_id: str = ""
     public_base_url: str = "http://127.0.0.1:7860"
+    voice_temporary_hours: int = 24
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -51,6 +52,10 @@ class Settings:
                 "PUBLIC_BASE_URL",
                 "http://127.0.0.1:7860",
             ).rstrip("/"),
+            voice_temporary_hours=max(
+                1,
+                int(environ.get("VOICE_TEMPORARY_HOURS", "24")),
+            ),
         )
 
     @property

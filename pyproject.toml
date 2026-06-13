@@ -9,6 +9,7 @@ description = "A portable, composable, collectible communication persona."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "elevenlabs>=2,<3",
   "fastapi>=0.115,<1",
   "gradio[oauth]>=6.0.1,<7",
   "huggingface-hub>=1.0,<2",

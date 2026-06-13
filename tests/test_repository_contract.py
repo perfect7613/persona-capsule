@@ -51,6 +51,13 @@ def _record(owner_id: str = ALICE) -> CapsuleRecord:
         source_fingerprint="source-v1",
         artifact_refs=("card/interactive.png",),
         pending_cleanup_refs=("voice:temporary-id",),
+        voice_provider="elevenlabs",
+        voice_id="private-voice-id",
+        voice_status="ready",
+        voice_retention="retained",
+        voice_consent_at="2026-06-13T00:00:00+00:00",
+        voice_sample_ref="voice/signature.mp3",
+        voice_model_id="eleven_multilingual_v2",
     )
 
 

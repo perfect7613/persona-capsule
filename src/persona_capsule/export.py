@@ -76,6 +76,12 @@ def build_capsule_export(
             "prompt_hash": record.card_prompt_hash,
             "seed": record.card_seed,
         },
+        "voice_recipe": {
+            "provider": record.voice_provider,
+            "model_id": record.voice_model_id,
+            "retention": record.voice_retention,
+            "provider_voice_id_included": False,
+        },
         "exemplar_integrity": {
             "count": len(record.exemplar_pairs),
             "pair_hashes": [pair.pair_hash for pair in record.exemplar_pairs],

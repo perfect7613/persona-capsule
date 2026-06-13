@@ -17,6 +17,11 @@ from persona_capsule.repository import CapsuleRepository, InMemoryCapsuleReposit
 from persona_capsule.repository_factory import build_capsule_repository
 from persona_capsule.steering_service import CapsuleSteeringService, SteeringGateway
 from persona_capsule.ui import CSS, build_demo, build_theme
+from persona_capsule.voice import (
+    CapsuleVoiceService,
+    ElevenLabsVoiceProvider,
+    VoiceProvider,
+)
 
 
 def create_app(
@@ -24,6 +29,7 @@ def create_app(
     repository: CapsuleRepository | None = None,
     steering_gateway: SteeringGateway | None = None,
     art_provider: ArtProvider | None = None,
+    voice_provider: VoiceProvider | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     if repository is None:
@@ -54,6 +60,17 @@ def create_app(
         repository,
         settings.capsule_data_dir,
         settings.public_base_url,
+    )
+    if voice_provider is None and settings.elevenlabs_available:
+        try:
+            voice_provider = ElevenLabsVoiceProvider()
+        except RuntimeError:
+            voice_provider = None
+    voice_service = CapsuleVoiceService(
+        capsule_library,
+        settings.capsule_data_dir,
+        voice_provider,
+        temporary_hours=settings.voice_temporary_hours,
     )
     app = FastAPI(
         title="Persona Capsule",
@@ -117,6 +134,19 @@ def create_app(
             raise HTTPException(status_code=404, detail="Capsule image unavailable") from exc
         return FileResponse(path, media_type="image/png")
 
+    @app.get(
+        "/c/{slug}/audio",
+        response_class=FileResponse,
+        include_in_schema=False,
+    )
+    async def public_capsule_audio(slug: str) -> FileResponse:
+        try:
+            record = publishing_service.get_public(slug)
+            path = publishing_service.public_audio_path(record)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Capsule audio unavailable") from exc
+        return FileResponse(path, media_type="audio/mpeg")
+
     return gr.mount_gradio_app(
         app=app,
         blocks=build_demo(
@@ -126,6 +156,7 @@ def create_app(
             steering_service,
             card_service,
             publishing_service,
+            voice_service,
         ),
         path="/app",
         footer_links=[],

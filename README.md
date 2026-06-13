@@ -28,9 +28,20 @@ It combines:
 
 ## Status
 
-Planning is complete and implementation is underway. The first vertical slice
-provides a bootable FastAPI + Gradio shell, safe provider configuration status,
-and an offline deterministic capsule demo.
+The complete Quick Capsule backbone is now implemented:
+
+- Hugging Face identity-bound private capsule storage;
+- consented message ingestion, redaction, editable style profiles, and retained
+  exemplar pairs;
+- live MiniCPM4.1-8B inference-time steering on Modal;
+- FLUX.2 Klein card generation with deterministic fallback rendering;
+- `.persona` and compatibility-manifest exports;
+- stable public capsule pages with X/Open Graph metadata;
+- real ElevenLabs Instant Voice Cloning, speech synthesis, retention, and
+  deletion through the official API.
+
+Fusion, Nemotron battles, Deep Capsule training, and final Space hardening remain
+in progress.
 
 - [Product requirements](./PRD.md)
 - [Technical plan audit](./PLAN_AUDIT.md)

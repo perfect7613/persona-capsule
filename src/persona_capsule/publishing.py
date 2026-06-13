@@ -28,6 +28,7 @@ class PublishSelection:
     include_descriptors: bool = True
     include_dimensions: bool = False
     include_card: bool = True
+    include_voice_sample: bool = False
 
 
 class PublishingService:
@@ -66,6 +67,11 @@ class PublishingService:
             if not record.social_image_ref:
                 raise ValueError("Generate a social card before publishing it.")
             projection["social_image"] = True
+        if selection.include_voice_sample:
+            if not record.voice_sample_ref or record.voice_status != "ready":
+                raise ValueError("Create an available voice sample before publishing it.")
+            projection["voice_sample"] = True
+            projection["voice_label"] = "Synthetic voice generated with ElevenLabs"
         return projection
 
     def publish(
@@ -142,6 +148,22 @@ class PublishingService:
             raise CapsuleNotFoundError(record.public_slug)
         return path
 
+    def public_audio_path(self, record: CapsuleRecord) -> Path:
+        projection = record.published_projection or {}
+        if not projection.get("voice_sample") or not record.voice_sample_ref:
+            raise CapsuleNotFoundError(record.public_slug)
+        owner_namespace = sha256(record.owner_id.encode()).hexdigest()[:24]
+        path = (
+            self._artifact_root
+            / "artifacts"
+            / owner_namespace
+            / record.capsule_id
+            / Path(record.voice_sample_ref).name
+        )
+        if not path.is_file():
+            raise CapsuleNotFoundError(record.public_slug)
+        return path
+
     def render_public_html(self, record: CapsuleRecord) -> str:
         projection = record.published_projection or {}
         title = str(projection["name"])
@@ -171,6 +193,13 @@ class PublishingService:
         image_html = (
             f'<img src="{escape(image_url)}" alt="{escape(title)} generated card">'
             if projection.get("social_image")
+            else ""
+        )
+        voice_html = (
+            '<div class="voice"><b>Synthetic voice</b>'
+            f'<audio controls preload="none" src="{escape(canonical)}/audio"></audio>'
+            f"<small>{escape(str(projection.get('voice_label', 'Synthetic audio')))}</small></div>"
+            if projection.get("voice_sample")
             else ""
         )
         return f"""<!doctype html>
@@ -213,6 +242,9 @@ class PublishingService:
     a {{ display:inline-block; background:var(--acid); color:var(--ink);
       padding:14px 18px; font-weight:800; text-decoration:none; margin-top:24px; }}
     small {{ display:block; margin-top:24px; opacity:.7; }}
+    .voice {{ border-top:1px solid #555; margin-top:28px; padding-top:20px; }}
+    .voice audio {{ display:block; margin-top:12px; max-width:100%; }}
+    .voice small {{ margin-top:8px; }}
     @media(max-width:760px) {{ section {{ grid-template-columns:1fr; padding:32px; }} }}
   </style>
 </head>
@@ -225,6 +257,7 @@ class PublishingService:
         <h1>{escape(title)}</h1>
         <p>{escape(summary)}</p>
         <div class="traits">{descriptors_html}</div>
+        {voice_html}
         <a href="{escape(share_url)}" rel="noopener">Share on X</a>
         <small>Communication-style collectible · AI-generated artwork</small>
       </div>
