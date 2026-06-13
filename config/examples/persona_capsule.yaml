@@ -1,0 +1,35 @@
+job: extension
+config:
+  name: persona_capsule_lora
+  training_folder: "/output"
+  process:
+    - type: sd_trainer
+      training_folder: "/output"
+      device: cuda:0
+      trigger_word: "PSNA0x7"
+      save:
+        save_every: 250
+        save_format: safetensors
+      datasets:
+        - folder_path: "/dataset/dataset/PicS/PicS"
+          caption_ext: txt
+          resolution: [1024]
+      train:
+        batch_size: 1
+        steps: 1800
+        gradient_accumulation_steps: 1
+        lr: 1e-4
+        optimizer: adamw8bit
+        noise_scheduler: "flowmatch"
+        dtype: bf16
+        gradient_checkpointing: true
+      model:
+        name_or_path: "black-forest-labs/FLUX.2-klein-base-4B"
+        arch: flux2_klein_4b
+      sample:
+        sampler: flowmatch
+        sample_every: 250
+        sample_steps: 4
+        prompts:
+          - "PSNA0x7. A young woman sitting alone in a quiet room, warm light"
+          - "PSNA0x7. A figure standing at a window at night, city outside"

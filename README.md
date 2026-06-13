@@ -15,7 +15,11 @@ It combines:
 
 ## Status
 
-Planning is complete and implementation has not started.
+Planning is complete. The repository now includes:
+
+- a Persona Capsule Gradio application (`app.py`)
+- restored ai-toolkit training infrastructure (`run_modal.py`, `toolkit/`, `jobs/`, etc.)
+- visual LoRA training orchestration via Modal (`persona_capsule/services/training_orchestrator.py`)
 
 - [Product requirements](./PRD.md)
 - [Technical plan audit](./PLAN_AUDIT.md)
@@ -42,6 +46,33 @@ cp .env.example .env
 
 Never commit `.env`. Production credentials will use Hugging Face Space Secrets
 and Modal Secrets.
+
+## Run locally
+
+```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
+pip install -r requirements-app.txt
+pip install -r requirements-dev.txt
+copy .env.example .env
+python app.py
+```
+
+Open `http://127.0.0.1:7860` and use the **Visual LoRA Training** tab.
+
+## Visual LoRA training (Modal + ai-toolkit)
+
+1. Prepare a Modal dataset volume (`my-dataset`) with images and `.txt` captions.
+2. Set `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, and `MODAL_DATASET_PATH` in `.env`.
+3. Install Modal: `pip install modal`
+4. From the Gradio app, preview or submit a capsule-specific config.
+5. Or run manually:
+
+```bash
+modal run run_modal.py --config /root/ai-toolkit/config/examples/persona_capsule.yaml
+```
+
+Generated capsule configs are written to `config/generated/` and job metadata to `artifacts/training_jobs/`.
 
 ## Built With Codex
 

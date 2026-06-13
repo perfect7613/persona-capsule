@@ -1,0 +1,11 @@
+# Persona Capsule application dependencies (local Gradio app)
+gradio>=5.0.0
+python-dotenv>=1.0.0
+PyYAML>=6.0.0
+Pillow>=10.0.0
+
+# Modal CLI for submitting ai-toolkit training jobs
+modal>=0.64.0
+
+# ai-toolkit training stack — install separately for GPU/local training:
+# pip install -r requirements.txt
