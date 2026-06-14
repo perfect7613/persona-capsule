@@ -9,6 +9,7 @@ from persona_capsule.profile import (
     ExemplarPair,
     StyleDimensions,
     StyleProfile,
+    ensure_distinct_contrast,
 )
 
 MIN_MESSAGES = 8
@@ -255,13 +256,15 @@ def neutralize_style(text: str) -> str:
     neutral = re.sub(r"[!?]{2,}", ".", neutral)
     neutral = re.sub(r"!+", ".", neutral)
     neutral = re.sub(r"\s*[—–]\s*", ", ", neutral)
+    neutral = re.sub(r"^\s*please\s+", "", neutral, flags=re.I)
+    neutral = re.sub(r"^\s*(?:thanks|thank you)\s+for\s+", "", neutral, flags=re.I)
+    neutral = re.sub(r"^\s*good progress[.!]\s*", "", neutral, flags=re.I)
+    neutral = re.sub(r"\blet[’']s\b", "we should", neutral, flags=re.I)
     neutral = re.sub(
         r"\b(?:really|very|honestly|basically|literally)\b\s*", "", neutral, flags=re.I
     )
     neutral = re.sub(r"\s+", " ", neutral).strip()
-    if neutral == text.strip():
-        neutral = neutral.rstrip(".") + "."
-    return neutral
+    return ensure_distinct_contrast(text, neutral)[0]
 
 
 def propose_exemplar_pairs(messages: tuple[MessageRecord, ...]) -> tuple[ExemplarPair, ...]:

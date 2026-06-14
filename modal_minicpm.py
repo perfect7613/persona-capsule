@@ -10,10 +10,11 @@ from typing import Any
 
 import modal
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+LOCAL_SRC = Path(__file__).parent / "src"
+sys.path.insert(0, str(LOCAL_SRC) if LOCAL_SRC.exists() else "/root")
 
-from persona_capsule.profile import ExemplarPair
-from persona_capsule.steering import (
+from persona_capsule.profile import ExemplarPair, ensure_distinct_contrast  # noqa: E402
+from persona_capsule.steering import (  # noqa: E402
     ExpiringVectorCache,
     LayerVectorDiagnostics,
     SteeringDiagnostics,
@@ -51,7 +52,10 @@ image = (
             "TOKENIZERS_PARALLELISM": "false",
         }
     )
-    .add_local_python_source("persona_capsule")
+    .add_local_dir(
+        Path(__file__).parent / "src" / "persona_capsule",
+        remote_path="/root/persona_capsule",
+    )
 )
 
 hf_token = os.environ.get("HF_TOKEN")
@@ -62,6 +66,15 @@ app = modal.App(APP_NAME)
 def _decode_new_tokens(tokenizer: Any, input_ids: Any, generated: Any) -> str:
     new_tokens = generated[0, input_ids.shape[1] :]
     return tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+
+
+def _find_content_span(sequence: list[int], content: list[int]) -> tuple[int, int] | None:
+    if not content or len(content) > len(sequence):
+        return None
+    for start in range(len(sequence) - len(content), -1, -1):
+        if sequence[start : start + len(content)] == content:
+            return start, start + len(content)
+    return None
 
 
 @app.cls(
@@ -152,9 +165,20 @@ class MiniCPMSteeringRuntime:
                 use_cache=False,
                 return_dict=True,
             )
-        last_position = int(inputs["attention_mask"][0].nonzero()[-1].item())
+        input_ids = inputs["input_ids"][0].detach().cpu().tolist()
+        content_ids = self.tokenizer(
+            text,
+            add_special_tokens=False,
+        )["input_ids"]
+        content_span = _find_content_span(input_ids, content_ids)
+        if content_span is None:
+            non_padding = inputs["attention_mask"][0].nonzero().flatten()
+            end = max(1, int(non_padding[-1].item()))
+            start = max(0, end - max(1, len(content_ids)))
+        else:
+            start, end = content_span
         return {
-            index: outputs.hidden_states[index + 1][0, last_position].float()
+            index: outputs.hidden_states[index + 1][0, start:end].float().mean(dim=0)
             for index in RECIPE.layer_indices
         }
 
@@ -185,12 +209,15 @@ class MiniCPMSteeringRuntime:
             return vectors, diagnostics, derivation_hash, True
 
         differences = {index: [] for index in RECIPE.layer_indices}
+        repaired_pair_count = 0
         for pair in pairs:
+            neutral, repaired = ensure_distinct_contrast(pair.positive, pair.neutral)
+            repaired_pair_count += int(repaired)
             positive = self._activation(pair.positive)
-            neutral = self._activation(pair.neutral)
+            neutral_activation = self._activation(neutral)
             for index in RECIPE.layer_indices:
-                differences[index].append(positive[index] - neutral[index])
-            del positive, neutral
+                differences[index].append(positive[index] - neutral_activation[index])
+            del positive, neutral_activation
 
         vectors: dict[int, Any] = {}
         diagnostics = []
@@ -198,7 +225,10 @@ class MiniCPMSteeringRuntime:
             mean_difference = torch.stack(differences[index]).mean(dim=0)
             pre_norm = float(torch.linalg.vector_norm(mean_difference).item())
             if pre_norm <= 1e-8:
-                raise RuntimeError(f"Layer {index} produced a zero-magnitude steering direction.")
+                raise RuntimeError(
+                    f"Layer {index} produced no measurable style contrast. "
+                    "Approve more varied exemplar pairs and try again."
+                )
             direction = mean_difference / pre_norm
             post_norm = float(torch.linalg.vector_norm(direction).item())
             vectors[index] = direction.to(dtype=torch.bfloat16, device="cuda")
@@ -214,6 +244,17 @@ class MiniCPMSteeringRuntime:
             )
         diagnostics_tuple = tuple(diagnostics)
         self.cache.set(cache_key, (vectors, diagnostics_tuple))
+        if repaired_pair_count:
+            print(
+                json.dumps(
+                    {
+                        "event": "steering.legacy_pairs_repaired",
+                        "capsule_id": capsule_id,
+                        "count": repaired_pair_count,
+                    },
+                    sort_keys=True,
+                )
+            )
         return vectors, diagnostics_tuple, derivation_hash, False
 
     @staticmethod

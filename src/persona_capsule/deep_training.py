@@ -6,6 +6,7 @@ from typing import Any, Protocol
 
 from persona_capsule.identity import Principal
 from persona_capsule.library import CapsuleLibrary
+from persona_capsule.profile import ensure_distinct_contrast
 from persona_capsule.repository import CapsuleRecord
 
 TERMINAL_STATES = {"completed", "failed", "cancelled", "timeout"}
@@ -80,6 +81,17 @@ class DeepCapsuleService:
             raise ValueError("This capsule already has an active Deep Capsule job.")
 
         estimate = estimate_deep_training(visual_lora=visual_lora)
+        training_pairs = []
+        for pair in record.exemplar_pairs:
+            neutral, repaired = ensure_distinct_contrast(pair.positive, pair.neutral)
+            item = {
+                "positive": pair.positive,
+                "neutral": neutral,
+                "source_index": pair.source_index,
+            }
+            if repaired:
+                item["legacy_contrast_repaired"] = True
+            training_pairs.append(item)
         payload = {
             "schema_version": "persona-deep-v1",
             "owner_namespace": principal.user_id,
@@ -88,7 +100,7 @@ class DeepCapsuleService:
             "profile": record.style_profile.as_dict(include_private_evidence=False)
             if record.style_profile
             else {},
-            "training_pairs": [pair.as_dict() for pair in record.exemplar_pairs],
+            "training_pairs": training_pairs,
             "visual_lora": visual_lora,
             "idempotency_key": key,
         }

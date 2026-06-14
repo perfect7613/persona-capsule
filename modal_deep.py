@@ -44,6 +44,23 @@ image = (
 app = modal.App(APP_NAME)
 
 
+def _repair_neutral_contrast(positive: str, neutral: str) -> str:
+    clean_positive = " ".join(positive.split())
+    clean_neutral = " ".join(neutral.split())
+    if clean_positive.casefold() != clean_neutral.casefold():
+        return clean_neutral
+    return f"State this information plainly: {clean_positive}"
+
+
+def _find_content_span(sequence: list[int], content: list[int]) -> tuple[int, int] | None:
+    if not content or len(content) > len(sequence):
+        return None
+    for start in range(len(sequence) - len(content), -1, -1):
+        if sequence[start : start + len(content)] == content:
+            return start, start + len(content)
+    return None
+
+
 def _memorization(output: str, references: list[str]) -> float:
     return max(
         (difflib.SequenceMatcher(None, output, reference).ratio() for reference in references),
@@ -185,9 +202,17 @@ def train_deep_capsule(payload: dict) -> dict:
                 use_cache=False,
                 return_dict=True,
             )
-        last_position = int(inputs["attention_mask"][0].nonzero()[-1].item())
+        input_ids = inputs["input_ids"][0].detach().cpu().tolist()
+        content_ids = tokenizer(text, add_special_tokens=False)["input_ids"]
+        content_span = _find_content_span(input_ids, content_ids)
+        if content_span is None:
+            non_padding = inputs["attention_mask"][0].nonzero().flatten()
+            end = max(1, int(non_padding[-1].item()))
+            start = max(0, end - max(1, len(content_ids)))
+        else:
+            start, end = content_span
         return {
-            index: outputs.hidden_states[index + 1][0, last_position].float()
+            index: outputs.hidden_states[index + 1][0, start:end].float().mean(dim=0)
             for index in layer_indices
         }
 
@@ -195,7 +220,12 @@ def train_deep_capsule(payload: dict) -> dict:
     differences = {index: [] for index in layer_indices}
     for pair in steering_pairs:
         positive = activation(str(pair["positive"]))
-        neutral = activation(str(pair["neutral"]))
+        neutral = activation(
+            _repair_neutral_contrast(
+                str(pair["positive"]),
+                str(pair["neutral"]),
+            )
+        )
         for index in layer_indices:
             differences[index].append(positive[index] - neutral[index])
     directions = {}

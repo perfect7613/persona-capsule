@@ -44,7 +44,7 @@ class SteeringRecipe:
     hidden_size: int = 4096
     num_hidden_layers: int = 32
     layer_indices: tuple[int, ...] = DEFAULT_LAYER_INDICES
-    aggregation: str = "last_non_padding_token_mean_difference"
+    aggregation: str = "assistant_content_token_mean_difference"
     format_version: str = STEERING_FORMAT_VERSION
 
     def compatibility_payload(self) -> str:

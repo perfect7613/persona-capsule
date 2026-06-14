@@ -5,6 +5,14 @@ from hashlib import sha256
 from typing import Any
 
 
+def ensure_distinct_contrast(positive: str, neutral: str) -> tuple[str, bool]:
+    clean_positive = " ".join(positive.split())
+    clean_neutral = " ".join(neutral.split())
+    if clean_positive.casefold() != clean_neutral.casefold():
+        return clean_neutral, False
+    return f"State this information plainly: {clean_positive}", True
+
+
 @dataclass(frozen=True, slots=True)
 class StyleDimensions:
     openness: float

@@ -5,6 +5,7 @@ from persona_capsule.ingestion import (
     approve_draft,
     build_ingestion_draft,
     parse_messages,
+    propose_exemplar_pairs,
     redact_messages,
     select_speaker,
     validate_sample,
@@ -67,6 +68,7 @@ def test_profile_schema_and_exemplar_approval_are_deterministic() -> None:
     assert first.profile == second.profile
     assert len(first.proposed_pairs) == 4
     assert all(pair.positive and pair.neutral for pair in first.proposed_pairs)
+    assert all(pair.positive.casefold() != pair.neutral.casefold() for pair in first.proposed_pairs)
     assert 0 <= first.profile.uncertainty <= 1
     assert set(first.profile.dimensions.as_dict()) == {
         "openness",
@@ -87,6 +89,23 @@ def test_profile_schema_and_exemplar_approval_are_deterministic() -> None:
     assert len(approved.exemplar_pairs) == 2
     assert approved.profile.dimensions.directness == 91
     assert approved.profile.dimensions.formality == 17
+
+
+def test_plain_messages_still_receive_distinct_neutral_contrasts() -> None:
+    messages = parse_messages(
+        "\n".join(
+            [
+                "You: The current plan has too many moving pieces.",
+                "You: Summarize the decision and the next step.",
+                "You: Show one concrete example.",
+                "You: Test this with three users.",
+            ]
+        )
+    )
+
+    pairs = propose_exemplar_pairs(messages)
+
+    assert all(pair.positive != pair.neutral for pair in pairs)
 
 
 def test_persisted_capsule_contains_no_raw_or_unselected_messages() -> None:
