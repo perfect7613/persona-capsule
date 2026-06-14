@@ -40,6 +40,10 @@ class VoiceQuotaError(VoiceError):
     """Raised when the provider account has insufficient quota."""
 
 
+class VoicePlanAccessError(VoiceError):
+    """Raised when the ElevenLabs subscription does not permit cloned-voice use."""
+
+
 class InvalidVoiceAudioError(VoiceError):
     """Raised when source audio cannot be used for cloning."""
 
@@ -76,6 +80,18 @@ def _error_text(error: ApiError) -> str:
 
 def _raise_provider_error(error: ApiError) -> None:
     text = _error_text(error)
+    if any(
+        marker in text
+        for marker in (
+            "ivc_not_permitted",
+            "instant voice cloning is not available",
+            "instantly cloned voices are not available",
+        )
+    ):
+        raise VoicePlanAccessError(
+            "Your current ElevenLabs plan does not permit Instant Voice Clone generation. "
+            "Upgrade the ElevenLabs subscription, then retry with the same API key."
+        ) from error
     if error.status_code in {401, 403}:
         raise VoiceProviderUnavailableError(
             "ElevenLabs rejected the configured credentials or account access."

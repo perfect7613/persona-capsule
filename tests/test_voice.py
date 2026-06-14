@@ -2,6 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from elevenlabs.core.api_error import ApiError
 
 from persona_capsule.identity import Principal
 from persona_capsule.library import CapsuleLibrary
@@ -12,8 +13,10 @@ from persona_capsule.voice import (
     InvalidVoiceAudioError,
     VoiceClone,
     VoiceError,
+    VoicePlanAccessError,
     VoiceProviderUnavailableError,
     VoiceVerificationRequiredError,
+    _raise_provider_error,
 )
 
 OWNER = Principal("hf:owner", "owner", "test")
@@ -107,6 +110,22 @@ def test_real_sdk_adapter_calls_ivc_tts_and_delete_methods() -> None:
     assert provider._client.voices.ivc.calls[0]["files"] == ["sample.wav"]
     assert provider._client.text_to_speech.calls[0]["model_id"] == "eleven_multilingual_v2"
     assert provider._client.voices.deleted == ["real-sdk-id"]
+
+
+def test_ivc_plan_error_is_not_reported_as_bad_credentials() -> None:
+    error = ApiError(
+        status_code=401,
+        body={
+            "detail": {
+                "type": "authorization_error",
+                "status": "ivc_not_permitted",
+                "message": "Instantly cloned voices are not available on your current plan.",
+            }
+        },
+    )
+
+    with pytest.raises(VoicePlanAccessError, match="current ElevenLabs plan"):
+        _raise_provider_error(error)
 
 
 def test_clone_requires_consent_and_supported_audio(tmp_path: Path) -> None:

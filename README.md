@@ -229,7 +229,7 @@ personalization process.
 | ElevenLabs voice lifecycle | Implemented | Real IVC, speech, retention, deletion, cleanup retries |
 | Capsule fusion | Complete | Compatible weighted live steering, cards, voice choice, provenance |
 | Nemotron battle | Complete | Blinded A/B and B/A judging on Modal |
-| Deep Capsule LoRA jobs | Complete | Resumable asynchronous QLoRA with held-out safety gate |
+| Deep Capsule LoRA jobs | Training pipeline | Resumable QLoRA, held-out safety gate, private adapter artifact; live adapter serving remains future work |
 | Operational controls | Complete | Per-user quotas, kill switches, safe telemetry |
 | Hackathon Space package | Ready | OAuth/ZeroGPU metadata and guarded deployment tooling |
 

@@ -663,7 +663,7 @@ def _status_badges(settings: Settings) -> str:
     badges = []
     for provider, available in settings.providers.items():
         state = "on" if available else "off"
-        suffix = "ready" if available else "not configured"
+        suffix = "configured" if available else "not configured"
         badges.append(f'<span class="pc-status {state}">{labels[provider]} · {suffix}</span>')
     return "".join(badges)
 
@@ -1933,7 +1933,9 @@ def build_demo(
                     ):
                         gr.Markdown(
                             "Use only your own voice or a recording you have explicit "
-                            "permission to clone. A quiet 30-second sample works best."
+                            "permission to clone. Use 1–2 minutes of clean, consistent "
+                            "speech with no music, reverb, or other speakers. Instant Voice "
+                            "Clone generation must be enabled on your ElevenLabs plan."
                         )
                         voice_audio = gr.Audio(
                             sources=["upload", "microphone"],
@@ -2032,7 +2034,9 @@ def build_demo(
                           <p>
                             The Quick Capsule already works without training. Use this
                             asynchronous Modal job only when you have reviewed the estimate
-                            and want a private adapter evaluated against held-out data.
+                            and want a private adapter trained and evaluated against held-out
+                            data. A passing adapter is saved privately; the current live chat
+                            continues to use request-scoped Quick Capsule steering.
                           </p>
                         </section>
                         """
