@@ -54,8 +54,10 @@ body, .gradio-container {
 }
 
 .gradio-container {
+  margin: 0 auto !important;
   max-width: 1240px !important;
   padding: 22px 24px 72px !important;
+  width: min(100%, 1240px) !important;
 }
 
 .pc-kicker, .pc-label {
@@ -411,7 +413,8 @@ body, .gradio-container {
   align-items: stretch;
   border-top: 1px solid var(--ink);
   gap: 18px !important;
-  margin: 0 0 22px !important;
+  margin: 0 12px 22px !important;
+  width: calc(100% - 24px) !important;
   padding-top: 22px;
 }
 
@@ -499,7 +502,8 @@ body, .gradio-container {
 }
 
 .pc-journey-tabs {
-  margin-top: 18px;
+  margin: 18px 12px 0;
+  width: calc(100% - 24px);
 }
 
 .pc-journey-tabs > .tab-nav {
@@ -626,7 +630,17 @@ body, .gradio-container {
   .pc-route-number { font-size: 21px; }
   .pc-section-intro { grid-template-columns: 1fr; }
   .pc-workspace { flex-direction: column !important; }
+  .pc-workspace {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+  }
   .pc-workspace-intro { display: none !important; }
+  .pc-journey-tabs {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+  }
   .pc-active-capsule { padding: 12px !important; }
   .pc-journey-tabs > .tab-nav {
     overflow-x: auto;

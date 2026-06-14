@@ -53,6 +53,7 @@ def test_health_is_ready_and_secret_safe() -> None:
             "fusion": 8,
             "battle": 6,
             "deep_training": 2,
+            "public_chat": 40,
         },
     }
 

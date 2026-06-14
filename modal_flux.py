@@ -8,6 +8,10 @@ import modal
 APP_NAME = "persona-capsule-flux"
 MODEL_ID = "black-forest-labs/FLUX.2-klein-4B"
 MODEL_REVISION = "e7b7dc27f91deacad38e78976d1f2b499d76a294"
+ANIME_LORA_ID = "Sawata97/flux2_4b_koni_animestyle"
+ANIME_LORA_REVISION = "b392813770c6155d3ae22d3fb8062f247f5108a2"
+ANIME_LORA_WEIGHT = "Flux_klein_4b_anime_Koni.safetensors"
+ANIME_LORA_SCALE = 0.8
 MODEL_CACHE_PATH = "/models"
 
 model_volume = modal.Volume.from_name(
@@ -20,6 +24,7 @@ image = (
         "accelerate==1.10.1",
         "diffusers==0.37.1",
         "huggingface-hub[hf-xet]==0.36.0",
+        "peft==0.17.1",
         "pillow==12.0.0",
         "safetensors==0.6.2",
         "sentencepiece==0.2.1",
@@ -35,7 +40,6 @@ image = (
     )
 )
 hf_token = os.environ.get("HF_TOKEN")
-flux_lora_repo_id = os.environ.get("FLUX_LORA_REPO_ID", "").strip()
 secret_payload = {"HF_TOKEN": hf_token} if hf_token else {}
 secrets = [modal.Secret.from_dict(secret_payload)] if secret_payload else []
 app = modal.App(APP_NAME)
@@ -61,8 +65,16 @@ class FluxCardRuntime:
             torch_dtype=torch.bfloat16,
         )
         self.pipe.to("cuda")
-        if flux_lora_repo_id:
-            self.pipe.load_lora_weights(flux_lora_repo_id)
+        self.pipe.load_lora_weights(
+            ANIME_LORA_ID,
+            revision=ANIME_LORA_REVISION,
+            weight_name=ANIME_LORA_WEIGHT,
+            adapter_name="anime_persona",
+        )
+        self.pipe.set_adapters(
+            "anime_persona",
+            adapter_weights=ANIME_LORA_SCALE,
+        )
 
     @modal.method()
     def generate(
@@ -92,7 +104,10 @@ class FluxCardRuntime:
         generated.save(output, format="PNG", optimize=True)
         return {
             "png_bytes": output.getvalue(),
-            "model_id": MODEL_ID,
-            "model_revision": MODEL_REVISION,
-            "lora_loaded": bool(flux_lora_repo_id),
+            "provider": "flux2-klein-anime-lora-modal",
+            "model_id": f"{MODEL_ID}+adapter:{ANIME_LORA_ID}",
+            "model_revision": f"{MODEL_REVISION}+adapter:{ANIME_LORA_REVISION}",
+            "lora_loaded": True,
+            "lora_weight": ANIME_LORA_WEIGHT,
+            "lora_scale": ANIME_LORA_SCALE,
         }

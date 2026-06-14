@@ -19,7 +19,7 @@ class ModalFluxArtGateway:
         )
         return ArtResult(
             png_bytes=result["png_bytes"],
-            provider="flux2-klein-modal",
+            provider=result["provider"],
             model_id=result["model_id"],
             model_revision=result["model_revision"],
         )

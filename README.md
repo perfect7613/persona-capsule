@@ -13,6 +13,7 @@ suggested_hardware: zero-a10g
 models:
   - openbmb/MiniCPM4.1-8B
   - black-forest-labs/FLUX.2-klein-4B
+  - Sawata97/flux2_4b_koni_animestyle
   - nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16
 tags:
   - track:wood
@@ -57,8 +58,8 @@ temporary instruction. Persona Capsule goes one step further:
 5. During each request, the model calculates a temporary steering direction
    toward your style.
 6. You can compare the ordinary answer with the steered answer.
-7. Your approved profile can become a collectible image, a synthetic voice
-   sample, a portable export, or a public card.
+7. Your approved profile can become an anime-style collectible image, a
+   synthetic voice sample, a portable export, or an interactive public page.
 
 Think of activation steering like adjusting a studio mixing desk. The underlying
 song stays the same, but selected characteristics become quieter or stronger.
@@ -104,6 +105,7 @@ flowchart TD
     O --> K
     K --> L["Publish an unguessable public URL"]
     L --> M["Share an X-compatible social card"]
+    L --> R["Let visitors chat with the live-steered capsule"]
     L --> N["Unpublish without deleting the private capsule"]
 ```
 
@@ -157,7 +159,7 @@ flowchart LR
 
     subgraph ModalRuntime["Modal GPU Runtime"]
         MiniCPM["MiniCPM4.1-8B\nlive vector derivation + generation"]
-        Flux["FLUX.2 Klein 4B\ncard artwork"]
+        Flux["FLUX.2 Klein 4B + anime LoRA\ncard artwork"]
         Nemotron["Nemotron 3 Nano 4B\nblinded battle judge"]
         Trainer["MiniCPM QLoRA\nasynchronous training"]
     end
@@ -187,6 +189,7 @@ flowchart LR
     Voice --> ElevenLabs
     Library --> Publishing
     Publishing --> Share
+    Share --> Steering
 ```
 
 ## How Live Steering Works
@@ -221,8 +224,8 @@ personalization process.
 | Text ingestion and redaction | Complete | Consent, parsing, quality checks, editable profile |
 | Inference-time MiniCPM steering | Complete | Live derivation, baseline comparison, cleanup diagnostics |
 | Private capsule lifecycle | Complete | Save, reopen, rename, export, and idempotent deletion |
-| FLUX card generation | Complete | Modal provider, controlled seeds, deterministic fallback |
-| Public sharing | Complete | Field preview, stable slug, Open Graph/X metadata, unpublish |
+| FLUX card generation | Complete | Default anime LoRA on Modal, controlled seeds, deterministic fallback |
+| Public sharing | Complete | Live-steered chat, stable slug, Open Graph/X metadata, unpublish |
 | ElevenLabs voice lifecycle | Implemented | Real IVC, speech, retention, deletion, cleanup retries |
 | Capsule fusion | Complete | Compatible weighted live steering, cards, voice choice, provenance |
 | Nemotron battle | Complete | Blinded A/B and B/A judging on Modal |
@@ -234,7 +237,9 @@ personalization process.
 
 - **MiniCPM4.1-8B** is the primary language model and activation-steering target.
 - **Modal** hosts GPU-intensive MiniCPM and FLUX workloads.
-- **FLUX.2 Klein 4B** produces profile-derived card artwork.
+- **FLUX.2 Klein 4B** with the pinned
+  **Sawata97/flux2_4b_koni_animestyle** LoRA produces anime-style
+  profile-derived card artwork by default.
 - **NVIDIA Nemotron 3 Nano 4B** judges anonymized capsule battles in both orders.
 - **ElevenLabs** provides consented Instant Voice Cloning and text-to-speech.
 - **Hugging Face OAuth** binds private capsules to their creators.
@@ -329,13 +334,13 @@ anonymous production login.
 | `MODAL_TOKEN_SECRET` | Modal authentication secret |
 | `ELEVENLABS_API_KEY` | Real Instant Voice Cloning and text-to-speech |
 | `VOICE_TEMPORARY_HOURS` | Lifetime of temporary voice clones; default `24` |
-| `FLUX_LORA_REPO_ID` | Optional global FLUX LoRA repository |
 | `PERSONA_CAPSULE_DATA_DIR` | Local records, artifacts, and export directory |
 | `PUBLIC_BASE_URL` | Canonical base URL used in public share metadata |
 | `PERSONA_LOCAL_IDENTITY` | Enables the development-only identity adapter |
 | `PERSONA_LOCAL_HF_USERNAME` | Username used by that local adapter |
 | `ENABLE_*` | Administrative kill switches for provider-backed features |
 | `QUOTA_*_DAILY` | Per-user daily limits for costly operations |
+| `QUOTA_PUBLIC_CHAT_DAILY` | Per-capsule daily limit for public live chat |
 | `HF_DEEP_REPO_PREFIX` | Prefix for private Deep Capsule adapter repositories |
 
 Never commit `.env`. Credentials previously exposed in chat, logs, screenshots,

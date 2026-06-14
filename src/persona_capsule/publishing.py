@@ -1,5 +1,6 @@
 """Explicit public projections, social metadata, and reversible publishing."""
 
+import json
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -202,6 +203,7 @@ class PublishingService:
             if projection.get("voice_sample")
             else ""
         )
+        chat_endpoint = json.dumps(f"{canonical}/chat")
         return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -222,46 +224,161 @@ class PublishingService:
   <style>
     :root {{ --paper:#f3efe2; --ink:#171712; --rust:#d4512d; --acid:#d8f24a; }}
     * {{ box-sizing:border-box; }}
-    body {{ margin:0; background:var(--paper); color:var(--ink);
-      font-family:Arial,sans-serif; }}
-    main {{ max-width:1120px; margin:auto; padding:32px 24px 80px; }}
-    nav {{ border-bottom:1px solid var(--ink); padding:12px 0; font-weight:800; }}
-    article {{ background:var(--ink); color:var(--paper); margin-top:56px; }}
-    article img {{ display:block; width:100%; aspect-ratio:1200/628; object-fit:cover;
-      border-bottom:1px solid #555; }}
-    section {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,320px);
-      gap:64px; padding:56px; }}
-    section.no-dimensions {{ grid-template-columns:1fr; }}
-    h1 {{ font:500 clamp(48px,8vw,92px)/.9 Georgia,serif; letter-spacing:-.05em; }}
-    p {{ font-size:21px; line-height:1.5; }}
+    body {{ margin:0; background:var(--ink); color:var(--paper);
+      font-family:"Avenir Next","Gill Sans",sans-serif; }}
+    body::before {{ background:linear-gradient(90deg,rgba(243,239,226,.025) 1px,
+      transparent 1px),linear-gradient(rgba(243,239,226,.025) 1px,transparent 1px);
+      background-size:32px 32px; content:""; inset:0; pointer-events:none;
+      position:fixed; }}
+    main {{ margin:auto; max-width:1240px; padding:28px 34px 80px; position:relative; }}
+    nav {{ align-items:center; border-bottom:1px solid #35352e; display:flex;
+      justify-content:space-between; padding:12px 0 18px; }}
+    nav b {{ font:700 22px Georgia,serif; }}
+    nav span {{ font-size:10px; font-weight:900; letter-spacing:.16em;
+      text-transform:uppercase; }}
+    article {{ border:1px solid #4a4a41; display:grid;
+      grid-template-columns:minmax(0,1.06fr) minmax(360px,.94fr); margin-top:42px; }}
+    article > img {{ display:block; height:100%; min-height:540px; object-fit:cover;
+      width:100%; }}
+    .identity {{ align-content:center; border-left:1px solid #4a4a41; padding:52px; }}
+    .eyebrow {{ color:var(--acid); font-size:11px; font-weight:900;
+      letter-spacing:.16em; text-transform:uppercase; }}
+    h1 {{ font:500 clamp(52px,6vw,86px)/.88 Georgia,serif; letter-spacing:-.055em;
+      margin:18px 0 24px; }}
+    h2 {{ font:500 clamp(36px,4vw,58px)/.94 Georgia,serif; letter-spacing:-.04em;
+      margin:12px 0 18px; }}
+    p {{ font-size:18px; line-height:1.55; }}
     .traits {{ display:flex; flex-wrap:wrap; gap:8px; margin:28px 0; }}
-    .traits span {{ border:1px solid #777; border-radius:999px; padding:8px 12px; }}
+    .traits span {{ border:1px solid #67675d; border-radius:999px; font-size:12px;
+      padding:8px 12px; }}
     ul {{ list-style:none; padding:0; }}
     li {{ display:flex; justify-content:space-between; border-top:1px solid #555;
       padding:12px 0; }}
-    a {{ display:inline-block; background:var(--acid); color:var(--ink);
+    a.share {{ display:inline-block; background:var(--acid); color:var(--ink);
       padding:14px 18px; font-weight:800; text-decoration:none; margin-top:24px; }}
     small {{ display:block; margin-top:24px; opacity:.7; }}
     .voice {{ border-top:1px solid #555; margin-top:28px; padding-top:20px; }}
     .voice audio {{ display:block; margin-top:12px; max-width:100%; }}
     .voice small {{ margin-top:8px; }}
-    @media(max-width:760px) {{ section {{ grid-template-columns:1fr; padding:32px; }} }}
+    .chat-section {{ border-top:1px solid #4a4a41; display:grid; gap:50px;
+      grid-template-columns:minmax(260px,.72fr) minmax(0,1.28fr); margin-top:54px;
+      padding-top:46px; }}
+    .chat-intro p {{ color:#c8c7bd; max-width:430px; }}
+    .chat-panel {{ background:var(--paper); box-shadow:10px 10px 0 var(--rust);
+      color:var(--ink); min-width:0; padding:22px; }}
+    .messages {{ display:flex; flex-direction:column; gap:12px; max-height:390px;
+      min-height:230px; overflow:auto; padding:4px 4px 18px; }}
+    .message {{ border:1px solid var(--ink); line-height:1.5; max-width:88%;
+      padding:12px 14px; white-space:pre-wrap; }}
+    .message.assistant {{ align-self:flex-start; background:#fffdf4; }}
+    .message.user {{ align-self:flex-end; background:var(--acid); }}
+    form {{ border-top:1px solid var(--ink); display:grid; gap:10px;
+      grid-template-columns:1fr auto; padding-top:16px; }}
+    textarea {{ background:#fffdf4; border:1px solid var(--ink); border-radius:0;
+      color:var(--ink); font:inherit; min-height:82px; padding:12px; resize:vertical; }}
+    button {{ align-self:stretch; background:var(--ink); border:1px solid var(--ink);
+      border-radius:0; color:var(--paper); cursor:pointer; font:900 12px inherit;
+      letter-spacing:.08em; padding:0 20px; text-transform:uppercase; }}
+    button:disabled {{ cursor:wait; opacity:.55; }}
+    #chat-status {{ font-size:12px; margin:10px 0 0; min-height:18px; }}
+    .disclosure {{ border-left:3px solid var(--acid); color:#c8c7bd; font-size:13px;
+      line-height:1.5; margin-top:20px; padding-left:12px; }}
+    @media(max-width:820px) {{
+      main {{ padding:18px 16px 54px; }}
+      nav span {{ display:none; }}
+      article {{ grid-template-columns:1fr; }}
+      article > img {{ min-height:0; }}
+      .identity {{ border-left:0; border-top:1px solid #4a4a41; padding:32px 26px; }}
+      .chat-section {{ grid-template-columns:1fr; }}
+      form {{ grid-template-columns:1fr; }}
+      button {{ min-height:50px; }}
+    }}
   </style>
 </head>
 <body><main>
-  <nav>PERSONA CAPSULE / PUBLIC PROJECTION</nav>
+  <nav><b>Persona Capsule</b><span>Public personality · live steering</span></nav>
   <article>
     {image_html}
-    <section class="{"with-dimensions" if dimensions_html else "no-dimensions"}">
-      <div>
-        <h1>{escape(title)}</h1>
-        <p>{escape(summary)}</p>
-        <div class="traits">{descriptors_html}</div>
-        {voice_html}
-        <a href="{escape(share_url)}" rel="noopener">Share on X</a>
-        <small>Communication-style collectible · AI-generated artwork</small>
-      </div>
+    <section class="identity">
+      <span class="eyebrow">A live Persona Capsule</span>
+      <h1>{escape(title)}</h1>
+      <p>{escape(summary)}</p>
+      <div class="traits">{descriptors_html}</div>
       {f"<ul>{dimensions_html}</ul>" if dimensions_html else ""}
+      {voice_html}
+      <a class="share" href="{escape(share_url)}" rel="noopener">Share on X</a>
+      <small>Communication-style collectible · AI-generated artwork</small>
     </section>
   </article>
-</main></body></html>"""
+  <section class="chat-section">
+    <div class="chat-intro">
+      <span class="eyebrow">Talk to the capsule</span>
+      <h2>Chat with {escape(title)}.</h2>
+      <p>
+        Your message is answered by MiniCPM with this capsule's personality
+        direction applied live during inference.
+      </p>
+      <div class="disclosure">
+        This is an AI simulation of communication style, not the person.
+        The capsule's private source messages are never shown to visitors.
+      </div>
+    </div>
+    <div class="chat-panel">
+      <div class="messages" id="chat-messages" aria-live="polite">
+        <div class="message assistant">
+          Ask me for an opinion, an explanation, or help thinking through a decision.
+        </div>
+      </div>
+      <form id="chat-form">
+        <textarea id="chat-input" maxlength="800"
+          placeholder="Ask this capsule something…" required></textarea>
+        <button id="chat-submit" type="submit">Send</button>
+      </form>
+      <p id="chat-status"></p>
+    </div>
+  </section>
+</main>
+<script>
+  const endpoint = {chat_endpoint};
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("chat-input");
+  const submit = document.getElementById("chat-submit");
+  const messages = document.getElementById("chat-messages");
+  const status = document.getElementById("chat-status");
+
+  function addMessage(kind, text) {{
+    const node = document.createElement("div");
+    node.className = `message ${{kind}}`;
+    node.textContent = text;
+    messages.appendChild(node);
+    messages.scrollTop = messages.scrollHeight;
+  }}
+
+  form.addEventListener("submit", async (event) => {{
+    event.preventDefault();
+    const message = input.value.trim();
+    if (!message || submit.disabled) return;
+    addMessage("user", message);
+    input.value = "";
+    submit.disabled = true;
+    status.textContent = "Deriving the live personality direction…";
+    try {{
+      const response = await fetch(endpoint, {{
+        method: "POST",
+        headers: {{"Content-Type": "application/json"}},
+        body: JSON.stringify({{message}})
+      }});
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "The capsule could not respond.");
+      addMessage("assistant", payload.reply);
+      status.textContent = "AI-generated · live activation steering removed after response";
+    }} catch (error) {{
+      addMessage("assistant", error.message || "The capsule could not respond.");
+      status.textContent = "Please try again shortly.";
+    }} finally {{
+      submit.disabled = false;
+      input.focus();
+    }}
+  }});
+</script>
+</body></html>"""

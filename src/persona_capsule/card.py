@@ -22,6 +22,19 @@ VARIATIONS = {
     "archive": "layered archival specimen composition, quiet asymmetry",
     "kinetic": "diagonal kinetic composition, controlled motion and energy",
 }
+ANIME_STYLE_TRIGGER = "anime_style"
+ANIME_TRAIT_CUES = {
+    "analytical": "observant eyes and a thoughtful, composed expression",
+    "calm": "relaxed posture and a serene expression",
+    "concise": "a clean silhouette and an economical, confident pose",
+    "curious": "an attentive gaze and a sense of discovery",
+    "direct": "a focused gaze and decisive posture",
+    "expressive": "animated eyes and an energetic, readable expression",
+    "measured": "calm posture and a restrained, deliberate expression",
+    "playful": "a lively pose and a subtle mischievous smile",
+    "structured": "precise tailoring and orderly geometric accessories",
+    "warm": "gentle eyes and an approachable, open expression",
+}
 PALETTES = (
     ((19, 18, 16), (216, 242, 74), (212, 81, 45), (243, 239, 226)),
     ((14, 23, 38), (80, 210, 196), (242, 165, 65), (235, 239, 245)),
@@ -108,6 +121,10 @@ def build_card_prompt(
     ][:3]
     if not mapped_symbols:
         mapped_symbols = ["an abstract signal glyph", "a measured concentric field"]
+    descriptors = [descriptor.casefold() for descriptor in record.public_projection.descriptors]
+    trait_cues = [
+        ANIME_TRAIT_CUES[descriptor] for descriptor in descriptors if descriptor in ANIME_TRAIT_CUES
+    ]
     energy = (
         "high-energy but ordered" if dimensions.expressiveness >= 65 else "quiet and deliberate"
     )
@@ -118,12 +135,18 @@ def build_card_prompt(
         else "tactile independent-publishing character"
     )
     prompt = (
-        "Persona Capsule collectible identity artwork. Abstract, no human likeness, "
-        "no words, no letters, no logos. Archival futurism with tactile screenprint "
-        f"texture and a premium card-art finish. {VARIATIONS[variation]}. "
-        f"{energy}; {geometry}; {finish}. Visual motifs: {', '.join(mapped_symbols)}. "
-        "Limited four-color palette, dramatic negative space, crisp silhouette, "
-        "museum-quality graphic design."
+        f"{ANIME_STYLE_TRIGGER}, masterpiece, best quality, premium contemporary anime "
+        "illustration. One original fictional adult anime character, solo, waist-up portrait, "
+        "face clearly visible, expressive eyes, polished character design, cinematic lighting, "
+        "and no resemblance to a real person. "
+        f"The character embodies these personality traits: {', '.join(descriptors)}. "
+        f"Express those traits through {', '.join(trait_cues) or 'a distinctive presence'}. "
+        f"{VARIATIONS[variation]}. {energy}; {geometry}; {finish}. "
+        f"Keep these motifs as subtle background or aura elements only: "
+        f"{', '.join(mapped_symbols)}. "
+        "Collectible social profile card, controlled cel shading, crisp linework, rich color, "
+        "dramatic negative space. No words, no letters, no captions, no logos, no watermark, "
+        "no photorealism."
     )
     return CardPrompt(
         text=prompt,

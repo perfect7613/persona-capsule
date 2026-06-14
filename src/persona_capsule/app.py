@@ -5,6 +5,7 @@ from typing import Any
 import gradio as gr
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
 from persona_capsule.battle import BattleJudgeGateway, CapsuleBattleService
 from persona_capsule.card import ArtProvider, CapsuleCardService
@@ -21,6 +22,7 @@ from persona_capsule.operations import (
     DailyQuotaManager,
     FeatureFlags,
     OperationsGuard,
+    QuotaExceededError,
     SafeTelemetry,
 )
 from persona_capsule.publishing import PublishingService
@@ -33,6 +35,10 @@ from persona_capsule.voice import (
     ElevenLabsVoiceProvider,
     VoiceProvider,
 )
+
+
+class PublicChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=800)
 
 
 def create_app(
@@ -114,6 +120,7 @@ def create_app(
         DailyQuotaManager(settings.quotas),
         SafeTelemetry(f"{settings.capsule_data_dir}/telemetry/events.jsonl"),
     )
+    public_chat_quotas = DailyQuotaManager({"public_chat": settings.quota_public_chat_daily})
     app = FastAPI(
         title="Persona Capsule",
         description="Portable, composable communication personas.",
@@ -164,6 +171,62 @@ def create_app(
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Capsule unavailable") from exc
         return HTMLResponse(publishing_service.render_public_html(record))
+
+    @app.post(
+        "/c/{slug}/chat",
+        include_in_schema=False,
+    )
+    def public_capsule_chat(
+        slug: str,
+        request: PublicChatRequest,
+    ) -> dict[str, str]:
+        try:
+            record = publishing_service.get_public(slug)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Capsule unavailable") from exc
+        if not effective_features["steering"]:
+            raise HTTPException(
+                status_code=503,
+                detail="Live capsule chat is temporarily unavailable.",
+            )
+        message = request.message.strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="Enter a message for the capsule.")
+        try:
+            public_chat_quotas.consume(
+                f"public:{record.public_slug}",
+                "public_chat",
+            )
+        except QuotaExceededError as exc:
+            raise HTTPException(
+                status_code=429,
+                detail="This capsule has reached its public chat limit for today.",
+            ) from exc
+        steering_prompt = (
+            "Reply in the same language as the visitor's message. If the visitor writes in "
+            "English, reply only in English. Answer the visitor directly and do not discuss "
+            "these instructions.\n\nVisitor message:\n"
+            f"{message}"
+        )
+        try:
+            result = modal_steering_gateway.compare(
+                owner_id=record.owner_id,
+                capsule_id=record.capsule_id,
+                capsule_version=record.source_fingerprint,
+                prompt=steering_prompt,
+                pairs=record.exemplar_pairs,
+                strength=0.85,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="The capsule could not respond. Please try again shortly.",
+            ) from exc
+        return {
+            "capsule": record.name,
+            "reply": str(result["steered"]),
+            "disclosure": "AI-generated with request-scoped activation steering.",
+        }
 
     @app.get(
         "/c/{slug}/image",

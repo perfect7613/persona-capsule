@@ -34,12 +34,14 @@ def test_feature_switches_and_quotas_are_environment_configurable() -> None:
             "ENABLE_BATTLE": "false",
             "ENABLE_DEEP_TRAINING": "yes",
             "QUOTA_BATTLE_DAILY": "3",
+            "QUOTA_PUBLIC_CHAT_DAILY": "12",
         }
     )
 
     assert settings.feature_flags["battle"] is False
     assert settings.feature_flags["deep_training"] is True
     assert settings.quotas["battle"] == 3
+    assert settings.quotas["public_chat"] == 12
 
 
 def test_local_identity_is_only_allowed_in_development_or_test() -> None:

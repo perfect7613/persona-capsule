@@ -37,6 +37,7 @@ class Settings:
     quota_fusion_daily: int = 8
     quota_battle_daily: int = 6
     quota_deep_training_daily: int = 2
+    quota_public_chat_daily: int = 40
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -90,6 +91,7 @@ class Settings:
             quota_fusion_daily=quota("QUOTA_FUSION_DAILY", 8),
             quota_battle_daily=quota("QUOTA_BATTLE_DAILY", 6),
             quota_deep_training_daily=quota("QUOTA_DEEP_TRAINING_DAILY", 2),
+            quota_public_chat_daily=quota("QUOTA_PUBLIC_CHAT_DAILY", 40),
         )
 
     @property
@@ -136,4 +138,5 @@ class Settings:
             "fusion": self.quota_fusion_daily,
             "battle": self.quota_battle_daily,
             "deep_training": self.quota_deep_training_daily,
+            "public_chat": self.quota_public_chat_daily,
         }

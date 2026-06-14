@@ -62,9 +62,12 @@ def test_prompt_uses_mapped_public_profile_fields_only() -> None:
 
     assert "glowing open aperture" in prompt.text
     assert "single precision beam" in prompt.text
+    assert prompt.text.startswith("anime_style")
+    assert "original fictional adult anime character" in prompt.text
+    assert "face clearly visible" in prompt.text
     assert PRIVATE_SENTINEL not in prompt.text
     assert "private lexical tendency" not in prompt.text
-    assert "no words" in prompt.text
+    assert "no words" in prompt.text.casefold()
 
 
 def test_deterministic_fallback_and_card_dimensions() -> None:
