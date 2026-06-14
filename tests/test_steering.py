@@ -45,6 +45,9 @@ def test_derivation_averages_and_normalizes_each_layer() -> None:
     assert all(item.post_normalization_norm == 1 for item in diagnostics)
     assert diagnostics[0].pre_normalization_norm == 2
     assert diagnostics[1].pre_normalization_norm == 3
+    assert diagnostics[0].calibration_norm == 2
+    assert diagnostics[1].calibration_norm == 3
+    assert diagnostics[0].as_dict()["calibration_norm"] == 2
 
 
 def test_zero_strength_installs_no_hooks() -> None:

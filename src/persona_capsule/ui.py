@@ -696,9 +696,18 @@ def build_demo(
             raise gr.Error(str(exc)) from exc
         diagnostics = result["diagnostics"]
         warning = diagnostics.get("quality_warning")
+        calibration_norms = [
+            float(layer.get("calibration_norm", 1.0)) for layer in diagnostics["layers"]
+        ]
+        calibration_summary = ""
+        if calibration_norms:
+            calibration_summary = (
+                f"Learned scale: **{min(calibration_norms):.2f}-{max(calibration_norms):.2f}**. "
+            )
         status = (
             f"Derived **{len(diagnostics['layers'])} live directions** from "
             f"**{diagnostics['exemplar_count']} approved pairs**. "
+            f"{calibration_summary}"
             f"Cache hit: **{diagnostics['cache_hit']}**. "
             f"Hooks active after request: **{diagnostics['hooks_active_after_request']}**."
         )

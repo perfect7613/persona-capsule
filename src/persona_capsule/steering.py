@@ -13,7 +13,7 @@ from persona_capsule.profile import ExemplarPair
 MODEL_ID = "openbmb/MiniCPM4.1-8B"
 MODEL_REVISION = "3a8dfed9c79a45e07dbff95bcd49d792343fa1a3"
 TRANSFORMERS_VERSION = "4.57.3"
-STEERING_FORMAT_VERSION = "persona-steering-v1"
+STEERING_FORMAT_VERSION = "persona-steering-v2"
 DEFAULT_LAYER_INDICES = (8, 12, 16, 20, 24)
 MIN_STRENGTH = -1.5
 MAX_STRENGTH = 1.5
@@ -79,6 +79,7 @@ class LayerVectorDiagnostics:
     layer_index: int
     pre_normalization_norm: float
     post_normalization_norm: float
+    calibration_norm: float
     component_preview: tuple[float, ...]
 
     def as_dict(self) -> dict[str, Any]:
@@ -86,6 +87,7 @@ class LayerVectorDiagnostics:
             "layer_index": self.layer_index,
             "pre_normalization_norm": self.pre_normalization_norm,
             "post_normalization_norm": self.post_normalization_norm,
+            "calibration_norm": self.calibration_norm,
             "component_preview": list(self.component_preview),
         }
 
@@ -222,6 +224,7 @@ def aggregate_pair_differences(
                 layer_index=layer_index,
                 pre_normalization_norm=round(pre_norm, 6),
                 post_normalization_norm=round(post_norm, 6),
+                calibration_norm=round(pre_norm, 6),
                 component_preview=tuple(round(value, 6) for value in direction[:8]),
             )
         )

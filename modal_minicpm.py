@@ -231,12 +231,16 @@ class MiniCPMSteeringRuntime:
                 )
             direction = mean_difference / pre_norm
             post_norm = float(torch.linalg.vector_norm(direction).item())
-            vectors[index] = direction.to(dtype=torch.bfloat16, device="cuda")
+            # Preserve the measured positive-minus-neutral magnitude for inference.
+            # Unit normalization is useful for inspection and fusion, but applying
+            # only the unit vector discards most of the learned style signal.
+            vectors[index] = mean_difference.to(dtype=torch.bfloat16, device="cuda")
             diagnostics.append(
                 LayerVectorDiagnostics(
                     layer_index=index,
                     pre_normalization_norm=round(pre_norm, 6),
                     post_normalization_norm=round(post_norm, 6),
+                    calibration_norm=round(pre_norm, 6),
                     component_preview=tuple(
                         round(float(value), 6) for value in direction[:8].detach().cpu().tolist()
                     ),
@@ -384,14 +388,24 @@ class MiniCPMSteeringRuntime:
         fused_vectors = {}
         layer_diagnostics = []
         for index in RECIPE.layer_indices:
-            combined = weight * first_vectors[index].float() + (1.0 - weight) * (
-                second_vectors[index].float()
+            first_vector = first_vectors[index].float()
+            second_vector = second_vectors[index].float()
+            first_norm = float(torch.linalg.vector_norm(first_vector).item())
+            second_norm = float(torch.linalg.vector_norm(second_vector).item())
+            if first_norm <= 1e-8 or second_norm <= 1e-8:
+                raise RuntimeError(f"Layer {index} has a zero-magnitude fusion source.")
+            combined = weight * (first_vector / first_norm) + (1.0 - weight) * (
+                second_vector / second_norm
             )
             pre_norm = float(torch.linalg.vector_norm(combined).item())
             if pre_norm <= 1e-8:
                 raise RuntimeError(f"Layer {index} produced a zero-magnitude fusion.")
             direction = combined / pre_norm
-            fused_vectors[index] = direction.to(dtype=torch.bfloat16, device="cuda")
+            calibration_norm = weight * first_norm + (1.0 - weight) * second_norm
+            fused_vectors[index] = (direction * calibration_norm).to(
+                dtype=torch.bfloat16,
+                device="cuda",
+            )
             layer_diagnostics.append(
                 {
                     "layer_index": index,
@@ -400,6 +414,7 @@ class MiniCPMSteeringRuntime:
                         float(torch.linalg.vector_norm(direction).item()),
                         6,
                     ),
+                    "calibration_norm": round(calibration_norm, 6),
                 }
             )
         hooks_active_after_request = True
