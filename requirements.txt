@@ -1,1 +1,7 @@
--e .
+elevenlabs>=2,<3
+fastapi>=0.115,<1
+huggingface-hub>=1.0,<2
+modal>=1.5,<2
+pillow>=12,<13
+python-dotenv>=1.0,<2
+uvicorn[standard]>=0.30,<1

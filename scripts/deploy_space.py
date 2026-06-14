@@ -17,7 +17,7 @@ IGNORED = [
     ".git/**",
     ".github/**",
     ".modal/**",
-    ".persona-capsule-data/**",
+    "**/.persona-capsule-data/**",
     ".pytest_cache/**",
     ".ruff_cache/**",
     ".venv/**",
