@@ -165,6 +165,9 @@ def test_public_routes_render_crawler_metadata_and_unpublish(
     assert "Synthetic voice" in page.text
     assert "Talk to the capsule" in page.text
     assert f"/c/{published.public_slug}/chat" in page.text
+    assert "Do you really know Clear Signal?" in page.text
+    assert f"/c/{published.public_slug}/challenge" in page.text
+    assert f"/c/{published.public_slug}/challenge/guess" in page.text
     assert "private-provider-id" not in page.text
     assert PRIVATE_SENTINEL not in page.text
     assert OWNER.user_id not in page.text
@@ -226,3 +229,60 @@ def test_public_chat_uses_private_pairs_server_side_without_exposing_them(
     assert gateway.calls[0]["prompt"].endswith("Visitor message:\nWhat should we test first?")
     assert gateway.calls[0]["pairs"] == record.exemplar_pairs
     assert gateway.calls[0]["strength"] == 0.85
+
+
+def test_public_challenge_shuffles_baseline_and_steered_without_private_data(
+    tmp_path: Path,
+) -> None:
+    repository, _, service, record = _service(tmp_path)
+    published = service.publish(
+        OWNER,
+        record.capsule_id,
+        PublishSelection(include_card=True),
+        confirmed=True,
+    )
+    gateway = PublicChatSteeringGateway()
+    app = create_app(
+        Settings(
+            app_env="test",
+            modal_available=True,
+            capsule_data_dir=str(tmp_path),
+            public_base_url="https://capsules.example",
+            quota_public_chat_daily=1,
+        ),
+        repository=repository,
+        steering_gateway=gateway,
+    )
+
+    with TestClient(app) as client:
+        response = client.post(f"/c/{published.public_slug}/challenge")
+        payload = response.json()
+        steered_index = payload["answers"].index("Test the smallest reversible version first.")
+        guess = client.post(
+            f"/c/{published.public_slug}/challenge/guess",
+            json={
+                "challenge_id": payload["challenge_id"],
+                "guess": steered_index,
+            },
+        )
+        replay = client.post(
+            f"/c/{published.public_slug}/challenge/guess",
+            json={
+                "challenge_id": payload["challenge_id"],
+                "guess": steered_index,
+            },
+        )
+
+    assert response.status_code == 200
+    assert set(payload["answers"]) == {
+        "A generic answer.",
+        "Test the smallest reversible version first.",
+    }
+    assert "steered_index" not in payload
+    assert "small reversible idea" in payload["prompt"]
+    assert PRIVATE_SENTINEL not in response.text
+    assert OWNER.user_id not in response.text
+    assert gateway.calls[0]["pairs"] == record.exemplar_pairs
+    assert guess.status_code == 200
+    assert guess.json() == {"correct": True, "steered_index": steered_index}
+    assert replay.status_code == 404

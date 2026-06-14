@@ -16,10 +16,10 @@ Target length: 2 to 3 minutes.
    strategy, and show the new provenance-backed capsule.
 8. Run a battle. Explain that MiniCPM answers the same challenge twice and
    Nemotron judges anonymized A/B and B/A orders.
-9. Show the Deep Capsule estimate, start an asynchronous job, and show resumable
-   polling without waiting for training to finish.
-10. Preview the exact public projection, publish it, open the public URL, and
-    unpublish it without deleting the private capsule.
+9. Preview the exact public projection, publish it, open the public URL, and
+   let a visitor try the "Do You Really Know Me?" baseline-versus-steered
+   challenge.
+10. Unpublish the capsule without deleting its private source.
 11. End on the deterministic pre-built demo to prove the project remains
     understandable when a provider is cold, queued, disabled, or out of quota.
 

@@ -2022,7 +2022,9 @@ def build_demo(
                             unpublish_capsule = gr.Button("Unpublish capsule")
                         publish_status = gr.Markdown()
 
-            with gr.Tab("Advanced lab", id="lab"):
+            # Keep the resumable training controls wired for internal development,
+            # but do not expose Deep Capsule until its adapter is served in live chat.
+            with gr.Tab("Advanced lab", id="lab", visible=False):
                 with gr.Column(elem_classes=["pc-tab-shell"]):
                     gr.HTML(
                         """

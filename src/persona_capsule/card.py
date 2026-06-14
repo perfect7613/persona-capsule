@@ -35,6 +35,30 @@ ANIME_TRAIT_CUES = {
     "structured": "precise tailoring and orderly geometric accessories",
     "warm": "gentle eyes and an approachable, open expression",
 }
+ANIME_SIGNATURE_HAIR = (
+    "short textured hair with a clean side part",
+    "layered swept-back hair",
+    "an asymmetric chin-length haircut",
+    "long hair tied into a precise low ponytail",
+    "a sharp cropped bob",
+    "soft wavy hair with one distinctive forelock",
+)
+ANIME_SIGNATURE_ACCESSORIES = (
+    "a geometric ear cuff",
+    "thin rectangular glasses",
+    "a minimal enamel lapel pin",
+    "a translucent collar clasp",
+    "a structured scarf",
+    "one asymmetric metallic shoulder detail",
+)
+ANIME_SIGNATURE_AURAS = (
+    "an offset halo made from broken rings",
+    "a constellation of small modular tiles",
+    "a narrow luminous horizon crossed by two arcs",
+    "a stepped waveform made from clean light bars",
+    "an orbital map with one missing segment",
+    "a layered fan of translucent geometric panels",
+)
 PALETTES = (
     ((19, 18, 16), (216, 242, 74), (212, 81, 45), (243, 239, 226)),
     ((14, 23, 38), (80, 210, 196), (242, 165, 65), (235, 239, 245)),
@@ -125,6 +149,22 @@ def build_card_prompt(
     trait_cues = [
         ANIME_TRAIT_CUES[descriptor] for descriptor in descriptors if descriptor in ANIME_TRAIT_CUES
     ]
+    signature_source = "|".join(
+        (
+            record.capsule_id,
+            ",".join(descriptors),
+            ",".join(
+                f"{name}:{value:.1f}"
+                for name, value in sorted(record.public_projection.dimensions.items())
+            ),
+        )
+    )
+    signature_digest = sha256(signature_source.encode()).digest()
+    signature_hair = ANIME_SIGNATURE_HAIR[signature_digest[0] % len(ANIME_SIGNATURE_HAIR)]
+    signature_accessory = ANIME_SIGNATURE_ACCESSORIES[
+        signature_digest[1] % len(ANIME_SIGNATURE_ACCESSORIES)
+    ]
+    signature_aura = ANIME_SIGNATURE_AURAS[signature_digest[2] % len(ANIME_SIGNATURE_AURAS)]
     energy = (
         "high-energy but ordered" if dimensions.expressiveness >= 65 else "quiet and deliberate"
     )
@@ -141,6 +181,8 @@ def build_card_prompt(
         "and no resemblance to a real person. "
         f"The character embodies these personality traits: {', '.join(descriptors)}. "
         f"Express those traits through {', '.join(trait_cues) or 'a distinctive presence'}. "
+        f"Stable capsule signature: {signature_hair}, {signature_accessory}, and "
+        f"{signature_aura}. "
         f"{VARIATIONS[variation]}. {energy}; {geometry}; {finish}. "
         f"Keep these motifs as subtle background or aura elements only: "
         f"{', '.join(mapped_symbols)}. "

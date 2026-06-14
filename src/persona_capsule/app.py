@@ -1,5 +1,8 @@
 """FastAPI boundary and mounted Persona Capsule Gradio application."""
 
+from secrets import randbelow, token_urlsafe
+from threading import Lock
+from time import monotonic
 from typing import Any
 
 import gradio as gr
@@ -39,6 +42,17 @@ from persona_capsule.voice import (
 
 class PublicChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=800)
+
+
+class PublicChallengeGuess(BaseModel):
+    challenge_id: str = Field(min_length=16, max_length=128)
+    guess: int = Field(ge=0, le=1)
+
+
+PUBLIC_CHALLENGE_PROMPT = (
+    "A friend is stuck between planning longer and testing a small reversible idea. "
+    "Give them one practical recommendation."
+)
 
 
 def create_app(
@@ -121,6 +135,8 @@ def create_app(
         SafeTelemetry(f"{settings.capsule_data_dir}/telemetry/events.jsonl"),
     )
     public_chat_quotas = DailyQuotaManager({"public_chat": settings.quota_public_chat_daily})
+    challenge_sessions: dict[str, tuple[float, str, int]] = {}
+    challenge_lock = Lock()
     app = FastAPI(
         title="Persona Capsule",
         description="Portable, composable communication personas.",
@@ -172,6 +188,43 @@ def create_app(
             raise HTTPException(status_code=404, detail="Capsule unavailable") from exc
         return HTMLResponse(publishing_service.render_public_html(record))
 
+    def run_public_compare(record: Any, message: str) -> dict[str, Any]:
+        if not effective_features["steering"]:
+            raise HTTPException(
+                status_code=503,
+                detail="Live capsule steering is temporarily unavailable.",
+            )
+        try:
+            public_chat_quotas.consume(
+                f"public:{record.public_slug}",
+                "public_chat",
+            )
+        except QuotaExceededError as exc:
+            raise HTTPException(
+                status_code=429,
+                detail="This capsule has reached its public interaction limit for today.",
+            ) from exc
+        steering_prompt = (
+            "Reply in the same language as the visitor's message. If the visitor writes in "
+            "English, reply only in English. Answer the visitor directly and do not discuss "
+            "these instructions.\n\nVisitor message:\n"
+            f"{message}"
+        )
+        try:
+            return modal_steering_gateway.compare(
+                owner_id=record.owner_id,
+                capsule_id=record.capsule_id,
+                capsule_version=record.source_fingerprint,
+                prompt=steering_prompt,
+                pairs=record.exemplar_pairs,
+                strength=0.85,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="The capsule could not respond. Please try again shortly.",
+            ) from exc
+
     @app.post(
         "/c/{slug}/chat",
         include_in_schema=False,
@@ -192,40 +245,74 @@ def create_app(
         message = request.message.strip()
         if not message:
             raise HTTPException(status_code=400, detail="Enter a message for the capsule.")
-        try:
-            public_chat_quotas.consume(
-                f"public:{record.public_slug}",
-                "public_chat",
-            )
-        except QuotaExceededError as exc:
-            raise HTTPException(
-                status_code=429,
-                detail="This capsule has reached its public chat limit for today.",
-            ) from exc
-        steering_prompt = (
-            "Reply in the same language as the visitor's message. If the visitor writes in "
-            "English, reply only in English. Answer the visitor directly and do not discuss "
-            "these instructions.\n\nVisitor message:\n"
-            f"{message}"
-        )
-        try:
-            result = modal_steering_gateway.compare(
-                owner_id=record.owner_id,
-                capsule_id=record.capsule_id,
-                capsule_version=record.source_fingerprint,
-                prompt=steering_prompt,
-                pairs=record.exemplar_pairs,
-                strength=0.85,
-            )
-        except Exception as exc:
-            raise HTTPException(
-                status_code=502,
-                detail="The capsule could not respond. Please try again shortly.",
-            ) from exc
+        result = run_public_compare(record, message)
         return {
             "capsule": record.name,
             "reply": str(result["steered"]),
             "disclosure": "AI-generated with request-scoped activation steering.",
+        }
+
+    @app.post(
+        "/c/{slug}/challenge",
+        include_in_schema=False,
+    )
+    def public_capsule_challenge(slug: str) -> dict[str, Any]:
+        try:
+            record = publishing_service.get_public(slug)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Capsule unavailable") from exc
+        result = run_public_compare(record, PUBLIC_CHALLENGE_PROMPT)
+        steered_index = randbelow(2)
+        baseline_index = 1 - steered_index
+        answers = ["", ""]
+        answers[steered_index] = str(result["steered"])
+        answers[baseline_index] = str(result["baseline"])
+        challenge_id = token_urlsafe(24)
+        now = monotonic()
+        with challenge_lock:
+            expired = [
+                key
+                for key, (created_at, _, _) in challenge_sessions.items()
+                if now - created_at > 600
+            ]
+            for key in expired:
+                challenge_sessions.pop(key, None)
+            challenge_sessions[challenge_id] = (
+                now,
+                record.public_slug,
+                steered_index,
+            )
+        return {
+            "capsule": record.name,
+            "prompt": PUBLIC_CHALLENGE_PROMPT,
+            "answers": answers,
+            "challenge_id": challenge_id,
+            "disclosure": "One answer used live request-scoped activation steering.",
+        }
+
+    @app.post(
+        "/c/{slug}/challenge/guess",
+        include_in_schema=False,
+    )
+    def public_capsule_challenge_guess(
+        slug: str,
+        request: PublicChallengeGuess,
+    ) -> dict[str, Any]:
+        try:
+            publishing_service.get_public(slug)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Capsule unavailable") from exc
+        with challenge_lock:
+            session = challenge_sessions.pop(request.challenge_id, None)
+        if session is None or monotonic() - session[0] > 600 or session[1] != slug:
+            raise HTTPException(
+                status_code=404,
+                detail="This challenge expired. Start a new round.",
+            )
+        correct_index = session[2]
+        return {
+            "correct": request.guess == correct_index,
+            "steered_index": correct_index,
         }
 
     @app.get(

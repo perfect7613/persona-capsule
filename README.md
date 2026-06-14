@@ -84,6 +84,19 @@ person.
 The capsule deliberately does **not** store a permanent user activation tensor.
 Steering directions are derived during inference and remain request-scoped.
 
+## How The Image Becomes Personal
+
+The anime card is not a single OCEAN template or one picture per trait:
+
+- approved descriptors control expression, posture, and symbolic motifs;
+- style dimensions control energy, geometry, formality, and palette selection;
+- each capsule receives a stable visual signature such as a hairstyle,
+  accessory, and aura pattern;
+- the selected composition and seed provide controlled rendering variation.
+
+Private messages are never sent to FLUX, and the character is intentionally
+fictional rather than an attempted likeness of the creator.
+
 ## User Journey
 
 ```mermaid
@@ -99,13 +112,13 @@ flowchart TD
     F --> J["Export the capsule and compatibility manifest"]
     F --> O["Fuse two compatible capsules"]
     F --> P["Run a blinded Nemotron battle"]
-    F --> Q["Optionally start an asynchronous Deep Capsule"]
     H --> K["Preview exactly what will be public"]
     I --> K
     O --> K
     K --> L["Publish an unguessable public URL"]
     L --> M["Share an X-compatible social card"]
     L --> R["Let visitors chat with the live-steered capsule"]
+    L --> S["Challenge friends to identify the steered answer"]
     L --> N["Unpublish without deleting the private capsule"]
 ```
 
@@ -146,7 +159,6 @@ flowchart LR
         Steering["Steering coordinator"]
         Fusion["Fusion engine"]
         Battle["Battle service"]
-        Deep["Deep Capsule orchestrator"]
         Visual["Visual capsule engine"]
         Voice["Voice lifecycle service"]
         Publishing["Publishing and export services"]
@@ -161,7 +173,6 @@ flowchart LR
         MiniCPM["MiniCPM4.1-8B\nlive vector derivation + generation"]
         Flux["FLUX.2 Klein 4B + anime LoRA\ncard artwork"]
         Nemotron["Nemotron 3 Nano 4B\nblinded battle judge"]
-        Trainer["MiniCPM QLoRA\nasynchronous training"]
     end
 
     subgraph Providers["External Provider"]
@@ -181,8 +192,6 @@ flowchart LR
     Library --> Battle
     Battle --> MiniCPM
     Battle --> Nemotron
-    Library --> Deep
-    Deep --> Trainer
     Library --> Visual
     Visual --> Flux
     Library --> Voice
@@ -225,11 +234,10 @@ personalization process.
 | Inference-time MiniCPM steering | Complete | Live derivation, baseline comparison, cleanup diagnostics |
 | Private capsule lifecycle | Complete | Save, reopen, rename, export, and idempotent deletion |
 | FLUX card generation | Complete | Default anime LoRA on Modal, controlled seeds, deterministic fallback |
-| Public sharing | Complete | Live-steered chat, stable slug, Open Graph/X metadata, unpublish |
+| Public sharing | Complete | Live chat, personality challenge, stable slug, social metadata, unpublish |
 | ElevenLabs voice lifecycle | Implemented | Real IVC, speech, retention, deletion, cleanup retries |
 | Capsule fusion | Complete | Compatible weighted live steering, cards, voice choice, provenance |
 | Nemotron battle | Complete | Blinded A/B and B/A judging on Modal |
-| Deep Capsule LoRA jobs | Training pipeline | Resumable QLoRA, held-out safety gate, private adapter artifact; live adapter serving remains future work |
 | Operational controls | Complete | Per-user quotas, kill switches, safe telemetry |
 | Hackathon Space package | Ready | OAuth/ZeroGPU metadata and guarded deployment tooling |
 
@@ -388,8 +396,7 @@ Persona Capsule is designed so optional providers fail independently:
 - ElevenLabs failure leaves text, steering, and card features available.
 - Failed voice deletion becomes a visible retryable cleanup state.
 - Publishing and unpublishing do not modify the private source profile.
-- Quick Capsules remain usable even if future Deep Capsule training fails.
-- Nemotron and Deep Capsule queue states remain visible and resumable.
+- Nemotron battle failures leave the original capsules unchanged.
 - Provider kill switches stop new costly work without affecting saved capsules.
 
 ## Hackathon Positioning

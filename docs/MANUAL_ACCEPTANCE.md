@@ -14,7 +14,6 @@ hide them.
 - [ ] Publishing preview matches the public page and unpublish works.
 - [ ] Fusion enforces compatibility and stores provenance.
 - [ ] Nemotron battle shows blinded, order-swapped structured scoring.
-- [ ] Deep Capsule estimate, start, poll, resume, and cancel work.
 - [ ] ElevenLabs cloning and deletion work when the optional provider is enabled.
 - [ ] Provider kill switches and quota messages preserve the saved capsule.
 
@@ -23,7 +22,7 @@ hide them.
 - [ ] Core creation controls remain readable and tappable.
 - [ ] Baseline/steered comparison does not overflow horizontally.
 - [ ] Card preview and public share page fit the viewport.
-- [ ] Fusion, battle, and Deep Capsule status controls remain usable.
+- [ ] Fusion and battle controls remain usable.
 
 ## Owner Review
 

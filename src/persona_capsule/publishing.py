@@ -204,6 +204,9 @@ class PublishingService:
             else ""
         )
         chat_endpoint = json.dumps(f"{canonical}/chat")
+        challenge_endpoint = json.dumps(f"{canonical}/challenge")
+        challenge_guess_endpoint = json.dumps(f"{canonical}/challenge/guess")
+        canonical_json = json.dumps(canonical)
         return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -260,6 +263,30 @@ class PublishingService:
     .voice {{ border-top:1px solid #555; margin-top:28px; padding-top:20px; }}
     .voice audio {{ display:block; margin-top:12px; max-width:100%; }}
     .voice small {{ margin-top:8px; }}
+    .challenge-section {{ background:var(--rust); color:var(--paper); display:grid;
+      gap:42px; grid-template-columns:minmax(260px,.72fr) minmax(0,1.28fr);
+      margin-top:18px; padding:34px; }}
+    .challenge-section .eyebrow {{ color:var(--ink); }}
+    .challenge-section h2 {{ margin-bottom:12px; }}
+    .challenge-section p {{ margin:0; }}
+    .challenge-panel {{ background:var(--paper); color:var(--ink); padding:22px; }}
+    .challenge-start {{ min-height:50px; padding:12px 18px; width:100%; }}
+    .challenge-content[hidden], .challenge-share[hidden] {{ display:none; }}
+    .challenge-prompt {{ border-left:4px solid var(--rust); font:700 18px/1.4 Georgia,serif;
+      margin:0 0 16px; padding-left:14px; }}
+    .challenge-answers {{ display:grid; gap:10px; grid-template-columns:1fr 1fr; }}
+    .challenge-answer {{ background:#fffdf4; color:var(--ink); font:inherit;
+      letter-spacing:0; min-height:150px; padding:16px; text-align:left;
+      text-transform:none; }}
+    .challenge-answer::before {{ display:block; font-size:11px; font-weight:900;
+      letter-spacing:.12em; margin-bottom:10px; text-transform:uppercase; }}
+    .challenge-answer[data-index="0"]::before {{ content:"Answer A"; }}
+    .challenge-answer[data-index="1"]::before {{ content:"Answer B"; }}
+    .challenge-answer.correct {{ background:var(--acid); }}
+    .challenge-answer.wrong {{ background:var(--rust); color:var(--paper); }}
+    .challenge-result {{ font-weight:800; min-height:24px; }}
+    .challenge-share {{ background:var(--ink) !important; color:var(--paper) !important;
+      margin-top:10px !important; }}
     .chat-section {{ border-top:1px solid #4a4a41; display:grid; gap:50px;
       grid-template-columns:minmax(260px,.72fr) minmax(0,1.28fr); margin-top:54px;
       padding-top:46px; }}
@@ -289,6 +316,8 @@ class PublishingService:
       article {{ grid-template-columns:1fr; }}
       article > img {{ min-height:0; }}
       .identity {{ border-left:0; border-top:1px solid #4a4a41; padding:32px 26px; }}
+      .challenge-section {{ grid-template-columns:1fr; padding:26px; }}
+      .challenge-answers {{ grid-template-columns:1fr; }}
       .chat-section {{ grid-template-columns:1fr; }}
       form {{ grid-template-columns:1fr; }}
       button {{ min-height:50px; }}
@@ -310,6 +339,32 @@ class PublishingService:
       <small>Communication-style collectible · AI-generated artwork</small>
     </section>
   </article>
+  <section class="challenge-section">
+    <div>
+      <span class="eyebrow">One-round personality test</span>
+      <h2>Do you really know {escape(title)}?</h2>
+      <p>
+        MiniCPM will answer the same situation twice. One answer is ordinary.
+        One has this capsule's live personality steering. Pick the one that feels right.
+      </p>
+    </div>
+    <div class="challenge-panel">
+      <button class="challenge-start" id="challenge-start" type="button">
+        Start the challenge
+      </button>
+      <div class="challenge-content" id="challenge-content" hidden>
+        <p class="challenge-prompt" id="challenge-prompt"></p>
+        <div class="challenge-answers">
+          <button class="challenge-answer" data-index="0" type="button"></button>
+          <button class="challenge-answer" data-index="1" type="button"></button>
+        </div>
+        <p class="challenge-result" id="challenge-result"></p>
+        <a class="share challenge-share" id="challenge-share" rel="noopener" hidden>
+          Share my result on X
+        </a>
+      </div>
+    </div>
+  </section>
   <section class="chat-section">
     <div class="chat-intro">
       <span class="eyebrow">Talk to the capsule</span>
@@ -340,11 +395,21 @@ class PublishingService:
 </main>
 <script>
   const endpoint = {chat_endpoint};
+  const challengeEndpoint = {challenge_endpoint};
+  const challengeGuessEndpoint = {challenge_guess_endpoint};
+  const capsuleUrl = {canonical_json};
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
   const submit = document.getElementById("chat-submit");
   const messages = document.getElementById("chat-messages");
   const status = document.getElementById("chat-status");
+  const challengeStart = document.getElementById("challenge-start");
+  const challengeContent = document.getElementById("challenge-content");
+  const challengePrompt = document.getElementById("challenge-prompt");
+  const challengeAnswers = Array.from(document.querySelectorAll(".challenge-answer"));
+  const challengeResult = document.getElementById("challenge-result");
+  const challengeShare = document.getElementById("challenge-share");
+  let challengeId = null;
 
   function addMessage(kind, text) {{
     const node = document.createElement("div");
@@ -353,6 +418,73 @@ class PublishingService:
     messages.appendChild(node);
     messages.scrollTop = messages.scrollHeight;
   }}
+
+  challengeStart.addEventListener("click", async () => {{
+    if (challengeStart.disabled) return;
+    challengeStart.disabled = true;
+    challengeStart.textContent = "Generating two answers…";
+    challengeResult.textContent = "";
+    challengeShare.hidden = true;
+    try {{
+      const response = await fetch(challengeEndpoint, {{method: "POST"}});
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "The challenge could not start.");
+      challengeId = payload.challenge_id;
+      challengePrompt.textContent = payload.prompt;
+      challengeAnswers.forEach((button, index) => {{
+        button.textContent = payload.answers[index];
+        button.disabled = false;
+        button.classList.remove("correct", "wrong");
+      }});
+      challengeContent.hidden = false;
+      challengeStart.textContent = "New round";
+    }} catch (error) {{
+      challengeResult.textContent = error.message || "The challenge could not start.";
+      challengeContent.hidden = false;
+      challengeStart.textContent = "Try again";
+    }} finally {{
+      challengeStart.disabled = false;
+    }}
+  }});
+
+  challengeAnswers.forEach((button) => {{
+    button.addEventListener("click", async () => {{
+      if (challengeId === null) return;
+      const chosenIndex = Number(button.dataset.index);
+      const activeChallengeId = challengeId;
+      challengeId = null;
+      challengeAnswers.forEach((answer) => {{ answer.disabled = true; }});
+      challengeResult.textContent = "Checking your answer…";
+      try {{
+        const response = await fetch(challengeGuessEndpoint, {{
+          method: "POST",
+          headers: {{"Content-Type": "application/json"}},
+          body: JSON.stringify({{
+            challenge_id: activeChallengeId,
+            guess: chosenIndex
+          }})
+        }});
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "The answer could not be checked.");
+        challengeAnswers.forEach((answer, index) => {{
+          answer.classList.add(index === payload.steered_index ? "correct" : "wrong");
+        }});
+        challengeResult.textContent = payload.correct
+          ? "You got it. That was the live-steered capsule."
+          : "Not this time. The green answer was the live-steered capsule.";
+        const shareText = payload.correct
+          ? "I recognized {escape(title)}'s Persona Capsule. Do you really know them?"
+          : "A Persona Capsule fooled me. Can you recognize {escape(title)}'s communication style?";
+        challengeShare.href =
+          `https://x.com/intent/post?text=${{encodeURIComponent(shareText)}}&url=${{
+            encodeURIComponent(capsuleUrl)
+          }}`;
+        challengeShare.hidden = false;
+      }} catch (error) {{
+        challengeResult.textContent = error.message || "The answer could not be checked.";
+      }}
+    }});
+  }});
 
   form.addEventListener("submit", async (event) => {{
     event.preventDefault();

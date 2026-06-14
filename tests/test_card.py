@@ -70,6 +70,24 @@ def test_prompt_uses_mapped_public_profile_fields_only() -> None:
     assert "no words" in prompt.text.casefold()
 
 
+def test_prompt_has_a_stable_capsule_specific_visual_signature() -> None:
+    _, record = _library()
+
+    first = build_card_prompt(record, variation="signal", seed=42)
+    repeated = build_card_prompt(record, variation="signal", seed=99)
+    other_record = CapsuleRecord.from_dict(
+        {
+            **record.as_dict(),
+            "capsule_id": "card-02",
+        }
+    )
+    other = build_card_prompt(other_record, variation="signal", seed=42)
+
+    assert "Stable capsule signature:" in first.text
+    assert first.text == repeated.text
+    assert first.text != other.text
+
+
 def test_deterministic_fallback_and_card_dimensions() -> None:
     _, record = _library()
     prompt = build_card_prompt(record, variation="archive", seed=7613)
