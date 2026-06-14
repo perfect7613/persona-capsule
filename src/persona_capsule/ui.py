@@ -526,6 +526,19 @@ def _selected_pair_hashes(rows: object, draft: IngestionDraft) -> set[str]:
     return selected
 
 
+def _recover_ingestion_draft(
+    draft: IngestionDraft | None,
+    raw_input: str,
+    speaker: str,
+    consent: bool,
+) -> IngestionDraft:
+    """Rebuild deterministic analysis when browser session state is unavailable."""
+
+    if draft is not None:
+        return draft
+    return build_ingestion_draft(raw_input, speaker, consent)
+
+
 def build_theme() -> gr.Theme:
     """Return the project theme at the Gradio app boundary."""
 
@@ -585,6 +598,9 @@ def build_demo(
     def approve_core(
         capsule_name: str,
         draft: IngestionDraft | None,
+        raw_input: str,
+        speaker_label: str,
+        has_consent: bool,
         pair_rows: object,
         openness: float,
         conscientiousness: float,
@@ -597,8 +613,15 @@ def build_demo(
     ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
         if principal is None:
             raise gr.Error("Sign in with Hugging Face before saving a capsule.")
-        if draft is None:
-            raise gr.Error("Analyze a message sample before approval.")
+        try:
+            resolved_draft = _recover_ingestion_draft(
+                draft,
+                raw_input,
+                speaker_label,
+                has_consent,
+            )
+        except IngestionError as exc:
+            raise gr.Error(str(exc)) from exc
         name = capsule_name.strip()
         if not name:
             raise gr.Error("Give the capsule a name before approval.")
@@ -608,8 +631,8 @@ def build_demo(
             raise gr.Error(str(exc)) from exc
         try:
             approved = approve_draft(
-                draft,
-                _selected_pair_hashes(pair_rows, draft),
+                resolved_draft,
+                _selected_pair_hashes(pair_rows, resolved_draft),
                 {
                     "openness": openness,
                     "conscientiousness": conscientiousness,
@@ -1620,6 +1643,9 @@ def build_demo(
         approval_inputs = [
             capsule_name,
             draft_state,
+            raw_messages,
+            speaker,
+            consent,
             pair_table,
             openness,
             conscientiousness,
@@ -1695,6 +1721,9 @@ def build_demo(
             def approve_with_oauth(
                 name: str,
                 draft: IngestionDraft | None,
+                raw_input: str,
+                speaker_label: str,
+                has_consent: bool,
                 rows: object,
                 open_value: float,
                 conscientious_value: float,
@@ -1708,6 +1737,9 @@ def build_demo(
                 return approve_core(
                     name,
                     draft,
+                    raw_input,
+                    speaker_label,
+                    has_consent,
                     rows,
                     open_value,
                     conscientious_value,
@@ -2137,6 +2169,9 @@ def build_demo(
             def approve_locally(
                 name: str,
                 draft: IngestionDraft | None,
+                raw_input: str,
+                speaker_label: str,
+                has_consent: bool,
                 rows: object,
                 open_value: float,
                 conscientious_value: float,
@@ -2149,6 +2184,9 @@ def build_demo(
                 return approve_core(
                     name,
                     draft,
+                    raw_input,
+                    speaker_label,
+                    has_consent,
                     rows,
                     open_value,
                     conscientious_value,

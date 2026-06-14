@@ -65,5 +65,14 @@ def test_local_identity_is_only_allowed_in_development_or_test() -> None:
 def test_oauth_ui_is_available_in_space_or_with_local_hf_token() -> None:
     assert Settings(space_environment=True).oauth_ui_available is True
     assert Settings(local_oauth_available=True).oauth_ui_available is True
+    assert (
+        Settings(
+            app_env="development",
+            local_oauth_available=True,
+            local_identity_enabled=True,
+            local_hf_username="owner",
+        ).oauth_ui_available
+        is False
+    )
     assert Settings(hugging_face_available=True).oauth_ui_available is False
     assert Settings().oauth_ui_available is False

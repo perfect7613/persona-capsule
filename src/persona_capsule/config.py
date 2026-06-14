@@ -110,7 +110,9 @@ class Settings:
 
     @property
     def oauth_ui_available(self) -> bool:
-        return self.space_environment or self.local_oauth_available
+        return self.space_environment or (
+            self.local_oauth_available and not self.local_identity_allowed
+        )
 
     @property
     def feature_flags(self) -> dict[str, bool]:
