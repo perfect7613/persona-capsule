@@ -328,15 +328,314 @@ body, .gradio-container {
   min-height: 48px;
 }
 
+.pc-hero {
+  align-items: end;
+  padding: 34px 0 22px;
+}
+
+.pc-hero h1 {
+  font-size: clamp(44px, 6vw, 76px);
+  margin: 12px 0 16px;
+}
+
+.pc-hero-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.pc-start-pill {
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 11px 14px;
+  text-transform: uppercase;
+}
+
+.pc-start-note {
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: 17px;
+  font-style: italic;
+}
+
+.pc-route {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 8px 0 28px;
+  overflow: hidden;
+}
+
+.pc-route-card {
+  background: rgba(243, 239, 226, 0.86);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  min-height: 116px;
+  padding: 15px 18px;
+  position: relative;
+}
+
+.pc-route-card:nth-child(2) {
+  background: var(--acid);
+}
+
+.pc-route-card:nth-child(3) {
+  background: var(--rust);
+  color: var(--paper);
+}
+
+.pc-route-number {
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: 27px;
+  line-height: 1;
+}
+
+.pc-route-card strong {
+  display: block;
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: 21px;
+  margin: 8px 0 4px;
+}
+
+.pc-route-card p {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.pc-workspace {
+  align-items: stretch;
+  border-top: 1px solid var(--ink);
+  gap: 18px !important;
+  margin: 0 0 22px !important;
+  padding-top: 22px;
+}
+
+.pc-section-intro h3 {
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  margin: 8px 0 14px;
+}
+
+.pc-workspace-intro {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.pc-workspace-note {
+  border-left: 4px solid var(--rust);
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif;
+  font-size: 18px;
+  line-height: 1.35;
+  margin-bottom: 4px;
+  padding: 4px 0 4px 13px;
+}
+
+.pc-account {
+  min-height: 0;
+  padding: 15px;
+}
+
+.pc-account strong {
+  font-size: 23px;
+  margin: 4px 0;
+}
+
+.pc-account p {
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.pc-active-capsule {
+  background: var(--ink) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  color: var(--paper) !important;
+  padding: 15px !important;
+}
+
+.pc-active-capsule label,
+.pc-active-capsule .prose,
+.pc-active-capsule p {
+  color: var(--paper) !important;
+}
+
+.pc-active-capsule button {
+  background: var(--acid) !important;
+  border: 1px solid var(--acid) !important;
+  color: var(--ink) !important;
+  font-weight: 900 !important;
+}
+
+.pc-library-state {
+  background: rgba(243, 239, 226, 0.72);
+  display: none;
+  min-height: 0;
+  padding: 13px;
+}
+
+.pc-library-state ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.pc-library-state li {
+  border: 1px solid var(--ink);
+  font-size: 12px;
+  padding: 7px 9px;
+}
+
+.pc-journey-tabs {
+  margin-top: 18px;
+}
+
+.pc-journey-tabs > .tab-nav {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ink) !important;
+  gap: 4px;
+  padding: 0 !important;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.pc-journey-tabs > .tab-nav button {
+  background: var(--paper) !important;
+  border: 1px solid var(--ink) !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  color: var(--ink) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em;
+  min-height: 48px;
+  padding: 12px 18px !important;
+  text-transform: uppercase;
+}
+
+.pc-journey-tabs > .tab-nav button.selected {
+  background: var(--ink) !important;
+  color: var(--paper) !important;
+}
+
+.pc-tab-shell {
+  animation: pc-rise 420ms ease both;
+  padding-top: 30px;
+}
+
+.pc-section-intro {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 0.75fr) minmax(320px, 1.25fr);
+  margin-bottom: 22px;
+}
+
+.pc-section-intro p {
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 680px;
+}
+
+.pc-step-chip {
+  align-self: start;
+  background: var(--acid);
+  border: 1px solid var(--ink);
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 7px 9px;
+  text-transform: uppercase;
+}
+
+.pc-primary-panel {
+  background: rgba(243, 239, 226, 0.9) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: 8px 8px 0 var(--rust) !important;
+  padding: 22px !important;
+}
+
+.pc-result-panel {
+  border-left: 5px solid var(--acid);
+  margin-top: 14px;
+  padding-left: 14px;
+}
+
+.pc-advanced {
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  margin-top: 16px !important;
+}
+
+.pc-advanced > button,
+.pc-advanced > .label-wrap {
+  font-family: "Iowan Old Style", Baskerville, Georgia, serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+
+.pc-danger-zone {
+  border-color: var(--rust) !important;
+}
+
+.pc-help {
+  background: rgba(216, 242, 74, 0.22);
+  border-left: 4px solid var(--acid);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+}
+
+@keyframes pc-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 760px) {
   .gradio-container { padding: 14px 14px 56px !important; }
-  .pc-hero { grid-template-columns: 1fr; padding-top: 46px; }
-  .pc-side-note { border-left: 0; border-top: 1px solid var(--ink); padding: 20px 0 0; }
+  .pc-nav { align-items: flex-start; }
+  .pc-nav .pc-kicker { max-width: 150px; text-align: right; }
+  .pc-hero { grid-template-columns: 1fr; padding: 28px 0 20px; }
+  .pc-hero h1 { font-size: 48px; }
+  .pc-side-note { display: none; }
   .pc-card { grid-template-columns: 1fr; }
   .pc-card-art { min-height: 250px; }
   .pc-card-copy { padding: 40px 30px 48px; }
   .pc-meta { grid-template-columns: 1fr; }
   .pc-library { flex-direction: column !important; }
+  .pc-route { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pc-route-card { min-height: 96px; padding: 12px 10px; }
+  .pc-route-card p { display: none; }
+  .pc-route-card strong { font-size: 16px; margin-top: 10px; }
+  .pc-route-number { font-size: 21px; }
+  .pc-section-intro { grid-template-columns: 1fr; }
+  .pc-workspace { flex-direction: column !important; }
+  .pc-workspace-intro { display: none !important; }
+  .pc-active-capsule { padding: 12px !important; }
+  .pc-journey-tabs > .tab-nav {
+    overflow-x: auto;
+    position: static;
+  }
+  .pc-journey-tabs > .tab-nav button {
+    flex: 0 0 auto;
+    min-width: 150px;
+  }
 }
 """
 
@@ -360,26 +659,48 @@ def _landing_html(settings: Settings) -> str:
     <main>
       <nav class="pc-nav">
         <span class="pc-wordmark">Persona Capsule</span>
-        <span class="pc-kicker">Build Small · 2026</span>
+        <span class="pc-kicker">Build Small · Personality Studio</span>
       </nav>
       <section class="pc-hero">
         <div>
-          <span class="pc-kicker">Portable personality infrastructure</span>
-          <h1>Your voice,<br><em>made tangible.</em></h1>
+          <span class="pc-kicker">A private, steerable version of your communication style</span>
+          <h1>Make your voice<br><em>portable.</em></h1>
           <p class="pc-deck">
-            Turn the patterns in how you communicate into a private, steerable,
-            collectible capsule—then speak, fuse, battle, and share it.
+            Bring a few messages. Persona Capsule learns the patterns in how you
+            communicate, lets you test them live, and turns them into something
+            you can see, hear, and share.
           </p>
+          <div class="pc-hero-actions">
+            <span class="pc-start-pill">Start with step 1 below</span>
+            <span class="pc-start-note">Your source messages stay private.</span>
+          </div>
         </div>
         <aside class="pc-side-note">
-          <span class="pc-label">Runtime principle</span>
-          <strong>Steer live.<br>Store less.</strong>
+          <span class="pc-label">What makes it different</span>
+          <strong>It changes the model while it writes.</strong>
           <p>
-            Activation vectors are derived during inference and remain
-            request-scoped. Your approved source material stays under your control.
+            The personality direction is calculated at inference time, applied for
+            one response, then removed. No permanent steering tensor is stored.
           </p>
           <div class="pc-status-row">{_status_badges(settings)}</div>
         </aside>
+      </section>
+      <section class="pc-route" aria-label="Product journey">
+        <article class="pc-route-card">
+          <span class="pc-route-number">01</span>
+          <strong>Create</strong>
+          <p>Paste messages, review the profile, and approve a few examples.</p>
+        </article>
+        <article class="pc-route-card">
+          <span class="pc-route-number">02</span>
+          <strong>Test</strong>
+          <p>Compare MiniCPM before and after live activation steering.</p>
+        </article>
+        <article class="pc-route-card">
+          <span class="pc-route-number">03</span>
+          <strong>Bring it to life</strong>
+          <p>Generate the card, add an authorized voice, and share on X.</p>
+        </article>
       </section>
     </main>
     """
@@ -1196,444 +1517,539 @@ def build_demo(
 
     with gr.Blocks(title="Persona Capsule — Your voice, made tangible") as demo:
         gr.HTML(_landing_html(settings))
-        gr.HTML(_capsule_html())
-        with gr.Row(elem_classes=["pc-library"]):
-            with gr.Column(scale=7):
+        draft_state = gr.State(value=None)
+        approved_capsule_state = gr.State(value=None)
+
+        with gr.Row(elem_classes=["pc-workspace"]):
+            with gr.Column(scale=7, elem_classes=["pc-workspace-intro"]):
                 gr.HTML(
                     """
-                    <span class="pc-kicker">Identity-bound by design</span>
-                    <h3>Your private library.</h3>
-                    <p>
-                      Public personality cards can travel. Source material, drafts,
-                      and creator controls stay attached to your Hugging Face identity.
-                    </p>
+                    <div class="pc-workspace-note">
+                      Your active capsule follows you through every step.
+                    </div>
                     """
                 )
-            with gr.Column(scale=13):
                 if settings.oauth_ui_available:
                     gr.LoginButton("Sign in with Hugging Face", elem_classes=["pc-login"])
                 else:
                     gr.HTML(
                         """
                         <div class="pc-login-unavailable">
-                          Hugging Face login activates in the Space. For local OAuth
-                          testing, configure <code>HF_TOKEN</code>.
+                          Using the configured local development identity.
+                          Hugging Face OAuth activates in the deployed Space.
                         </div>
                         """
                     )
                 account = gr.HTML()
+            with gr.Column(scale=13):
+                with gr.Group(elem_classes=["pc-active-capsule"]):
+                    gr.Markdown("### Active capsule")
+                    with gr.Row():
+                        capsule_selector = gr.Dropdown(
+                            label="Choose from your private library",
+                            choices=[],
+                        )
+                        open_capsule = gr.Button("Use this capsule")
+                    lifecycle_status = gr.Markdown(
+                        "Choose a saved capsule, or create one in step 1."
+                    )
                 library = gr.HTML()
-        with gr.Group(elem_classes=["pc-create-panel"]):
-            gr.Markdown("#### Open, export, or delete a private capsule")
-            with gr.Row():
-                capsule_selector = gr.Dropdown(
-                    label="Private capsule",
-                    choices=[],
-                )
-                open_capsule = gr.Button("Open capsule")
-            lifecycle_status = gr.Markdown()
-            reopened_profile = gr.JSON(label="Canonical private profile")
-            reopened_pairs = gr.Dataframe(
-                headers=["Approved", "Style exemplar", "Neutral contrast"],
-                datatype=["bool", "str", "str"],
-                interactive=False,
-                label="Approved private steering pairs",
-            )
-            include_export_exemplars = gr.Checkbox(
-                label="Include approved private exemplar pairs in this export",
-                value=False,
-            )
-            with gr.Row():
-                export_capsule = gr.Button("Export .persona and manifest")
-                delete_confirmation = gr.Checkbox(
-                    label="I understand this permanently deletes the capsule.",
-                    value=False,
-                )
-                delete_capsule = gr.Button("Delete capsule")
-            with gr.Row():
-                persona_export = gr.File(label=".persona export")
-                manifest_export = gr.File(label="Compatibility manifest")
-        gr.HTML(
-            """
-            <section class="pc-create">
-              <span class="pc-kicker">Quick Capsule · private by default</span>
-              <h3>Approve the signal, not the archive.</h3>
-              <p>
-                Paste your own messages, review redactions and the inferred profile,
-                then choose the small set of examples retained for live steering.
-              </p>
-              <div class="pc-privacy-note">
-                This describes communication style, not mental health, identity,
-                intelligence, or a clinical personality diagnosis.
-              </div>
-            </section>
-            """
-        )
-        draft_state = gr.State(value=None)
-        approved_capsule_state = gr.State(value=None)
-        with gr.Group(elem_classes=["pc-create-panel"]):
-            with gr.Row():
-                capsule_name = gr.Textbox(
-                    label="Capsule name",
-                    placeholder="e.g. Clear Signal",
-                )
-                speaker = gr.Textbox(
-                    label="Your speaker label",
-                    value="You",
-                    info='For "Name: message" exports, enter the matching name.',
-                )
-            raw_messages = gr.Textbox(
-                label="Your messages",
-                lines=10,
-                placeholder=(
-                    "You: Thanks — I see the tradeoff. Let’s test the smallest version first.\n"
-                    "You: I’m not convinced yet; what would change your mind?\n"
-                    "…paste at least 8 varied messages, ideally around 20."
-                ),
-            )
-            consent = gr.Checkbox(
-                label="I own these messages or have permission to process them.",
-                value=False,
-            )
-            analyze = gr.Button("Analyze private sample", elem_classes=["pc-button"])
-            creation_status = gr.Markdown()
-            cleaned_preview = gr.Markdown()
-            profile_json = gr.JSON(label="Editable profile evidence")
-            pair_table = gr.Dataframe(
-                headers=["Retain", "Style exemplar", "Neutral contrast"],
-                datatype=["bool", "str", "str"],
-                interactive=True,
-                label="Private steering pairs",
-            )
-            gr.Markdown("#### OCEAN-inspired style controls")
-            with gr.Row():
-                openness = gr.Slider(0, 100, value=50, label="Openness")
-                conscientiousness = gr.Slider(0, 100, value=50, label="Conscientiousness")
-                expressiveness = gr.Slider(0, 100, value=50, label="Expressiveness")
-            with gr.Row():
-                agreeableness = gr.Slider(0, 100, value=50, label="Agreeableness")
-                emotional_range = gr.Slider(0, 100, value=50, label="Emotional range")
-                directness = gr.Slider(0, 100, value=50, label="Directness")
-                formality = gr.Slider(0, 100, value=50, label="Formality")
-            approve = gr.Button(
-                "Approve profile and retained pairs",
-                elem_classes=["pc-button"],
-            )
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Collectible identity · FLUX.2 Klein</span>
-              <h3>Turn the profile into an object.</h3>
-              <p>
-                The visual prompt uses only approved profile dimensions and mapped
-                public descriptors. Private messages and evidence never enter it.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            with gr.Row():
-                card_variation = gr.Dropdown(
-                    choices=["signal", "archive", "kinetic"],
-                    value="signal",
-                    label="Controlled variation",
-                )
-                card_seed = gr.Number(
-                    value=7613,
-                    precision=0,
-                    label="Visual seed",
-                )
-            generate_card = gr.Button(
-                "Generate collectible card",
-                elem_classes=["pc-button"],
-            )
-            card_status = gr.Markdown()
-            with gr.Row():
-                interactive_card = gr.Image(
-                    label="Interactive card · 768×1024",
-                    type="filepath",
-                )
-                social_card = gr.Image(
-                    label="Social preview · 1200×628",
-                    type="filepath",
-                )
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Consented voice · ElevenLabs IVC</span>
-              <h3>Let the capsule speak.</h3>
-              <p>
-                Use only your own voice or a recording you have explicit permission
-                to clone. Record at least 30 clear seconds in a quiet room, with one
-                speaker and no music. Source audio is used for the provider request
-                and is not added to the capsule record.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            voice_audio = gr.Audio(
-                sources=["upload", "microphone"],
-                type="filepath",
-                label="Authorized voice recording",
-            )
-            voice_consent = gr.Checkbox(
-                label="I own this voice or have explicit permission to clone it.",
-                value=False,
-            )
-            voice_retention = gr.Radio(
-                choices=["temporary", "retained"],
-                value="temporary",
-                label="Clone lifecycle",
-                info=(
-                    f"Temporary clones expire after {settings.voice_temporary_hours} hours. "
-                    "Retained clones stay private until deletion."
-                ),
-            )
-            signature_line = gr.Textbox(
-                label="Signature line",
-                value="Small steps, clear signal, real momentum.",
-                lines=2,
-            )
-            create_voice = gr.Button(
-                "Create real ElevenLabs voice",
-                elem_classes=["pc-button"],
-            )
-            voice_status = gr.Markdown()
-            voice_output = gr.Audio(
-                label="Synthetic capsule speech",
-                type="filepath",
-            )
-            speech_text = gr.Textbox(
-                label="Speak another response",
-                placeholder="Enter up to 1000 characters for the capsule to read.",
-                lines=3,
-            )
-            with gr.Row():
-                synthesize_voice = gr.Button("Generate synthetic speech")
-                delete_voice = gr.Button("Delete ElevenLabs voice")
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Public projection · private source</span>
-              <h3>Choose exactly what travels.</h3>
-              <p>
-                Preview selected fields before publishing an opaque stable URL.
-                Private exemplars, evidence, owner IDs, and provider references
-                are never part of the public projection.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            with gr.Row():
-                publish_summary = gr.Checkbox(
-                    label="Public summary",
-                    value=True,
-                )
-                publish_descriptors = gr.Checkbox(
-                    label="Public descriptors",
-                    value=True,
-                )
-                publish_dimensions = gr.Checkbox(
-                    label="Public style dimensions",
-                    value=False,
-                )
-                publish_card = gr.Checkbox(
-                    label="Public social card",
-                    value=True,
-                )
-                publish_voice = gr.Checkbox(
-                    label="Public synthetic voice sample",
-                    value=False,
-                )
-            preview_publish = gr.Button("Preview public projection")
-            public_preview = gr.JSON(label="Fields visible without login")
-            publish_confirmation = gr.Checkbox(
-                label="I reviewed this projection and want to make it public.",
-                value=False,
-            )
-            with gr.Row():
-                publish_capsule = gr.Button(
-                    "Publish stable capsule URL",
-                    elem_classes=["pc-button"],
-                )
-                unpublish_capsule = gr.Button("Unpublish capsule")
-            publish_status = gr.Markdown()
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Live inference · MiniCPM4.1-8B on Modal</span>
-              <h3>See the steering vector work.</h3>
-              <p>
-                Compare one deterministic baseline against a response steered from
-                the approved capsule pairs. Directions are derived inside the request,
-                applied at five decoder layers, and then removed.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            live_prompt = gr.Textbox(
-                label="Prompt",
-                placeholder="Explain why a small team should test the risky assumption first.",
-                lines=3,
-            )
-            live_strength = gr.Slider(
-                -1.5,
-                1.5,
-                value=0.85,
-                step=0.05,
-                label="Inference-time steering strength",
-                info="Values above ±1.1 may reduce coherence.",
-            )
-            live_run = gr.Button("Compare baseline vs live steering", elem_classes=["pc-button"])
-            live_status = gr.Markdown()
-            with gr.Row():
-                baseline_output = gr.Textbox(label="MiniCPM baseline", lines=9)
-                steered_output = gr.Textbox(label="Live-steered response", lines=9)
-            vector_diagnostics = gr.JSON(
-                label="Request-scoped vector diagnostics",
-            )
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Compatible composition · no stored tensor</span>
-              <h3>Fuse two capsules into a new signal.</h3>
-              <p>
-                Both source vectors are derived during the request, normalized per
-                layer, weighted, and removed. The saved fusion keeps editable profile
-                data, source snapshots, exact weights, and provenance.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            with gr.Row():
-                fusion_source_a = gr.Dropdown(label="Fusion source A", choices=[])
-                fusion_source_b = gr.Dropdown(label="Fusion source B", choices=[])
-            fusion_weight = gr.Slider(
-                0,
-                100,
-                value=50,
-                step=5,
-                label="Source A percentage",
-            )
-            fusion_name = gr.Textbox(
-                label="Fused capsule name",
-                placeholder="e.g. Clear Spark",
-            )
-            fusion_prompt = gr.Textbox(
-                label="Shared generation prompt",
-                placeholder="Explain the next useful experiment.",
-                lines=3,
-            )
-            fusion_voice = gr.Radio(
-                choices=["none", "source_a", "source_b", "alternate"],
-                value="none",
-                label="Speaking voice strategy",
-                info="Voices are selected from permitted sources, never mathematically blended.",
-            )
-            with gr.Row():
-                check_fusion = gr.Button("Check compatibility")
-                create_fusion = gr.Button("Generate and save fusion", elem_classes=["pc-button"])
-            fusion_status = gr.Markdown("Choose two available source capsules.")
-            fusion_response = gr.Textbox(label="Fused MiniCPM response", lines=8)
-            fusion_diagnostics = gr.JSON(label="Fusion diagnostics")
-            with gr.Row():
-                fusion_card = gr.Image(label="Fused collectible card", type="filepath")
-                fusion_social = gr.Image(label="Fused social preview", type="filepath")
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Blinded game evaluation · NVIDIA Nemotron</span>
-              <h3>Battle two signals on the same challenge.</h3>
-              <p>
-                MiniCPM answers once per capsule with identical settings. Nemotron
-                receives anonymous candidates, judges A/B and B/A, and returns separate
-                style, quality, adherence, and safety scores.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            with gr.Row():
-                battle_source_a = gr.Dropdown(label="Battle capsule A", choices=[])
-                battle_source_b = gr.Dropdown(label="Battle capsule B", choices=[])
-            battle_challenge = gr.Textbox(
-                label="Bounded battle challenge",
-                value=(
-                    "Explain why a small team should test the riskiest assumption "
-                    "before committing to a large launch."
-                ),
-                lines=3,
-            )
-            run_battle = gr.Button("Run blinded Nemotron battle", elem_classes=["pc-button"])
-            battle_status = gr.Markdown()
-            battle_result = gr.JSON(label="Order-swapped game result")
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Optional enrichment · asynchronous Modal job</span>
-              <h3>Request a Deep Capsule without risking the Quick Capsule.</h3>
-              <p>
-                Training is opt-in, idempotent, resumable, and held-out evaluated.
-                A private safe-tensor adapter attaches only when quality improves
-                without crossing the memorization threshold.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            deep_visual_lora = gr.Checkbox(
-                label="Also request optional personal visual LoRA",
-                value=False,
-                info=(
-                    "Requires a separately reviewed image dataset. Without one, the job "
-                    "trains only the writing adapter and records that no visual adapter attached."
-                ),
-            )
-            deep_idempotency_key = gr.Textbox(
-                label="Idempotency key",
-                value=f"deep-{uuid4().hex}",
-            )
-            deep_confirmation = gr.Checkbox(
-                label="I reviewed the compute estimate and want to start this Modal job.",
-                value=False,
-            )
-            with gr.Row():
-                estimate_deep = gr.Button("Estimate Deep Capsule")
-                start_deep = gr.Button("Start Deep Capsule", elem_classes=["pc-button"])
-                poll_deep = gr.Button("Refresh job status")
-                cancel_deep = gr.Button("Cancel job")
-            deep_status = gr.Markdown()
-            deep_job = gr.JSON(label="Resumable Deep Capsule state")
-        gr.HTML(
-            """
-            <section class="pc-demo-title">
-              <span class="pc-kicker">Offline proof · no provider call</span>
-              <h3>Try the capsule’s shape.</h3>
-              <p>
-                This deterministic pre-built capsule keeps the product understandable
-                when a provider is cold, unavailable, or over its public quota.
-              </p>
-            </section>
-            """
-        )
-        with gr.Group(elem_classes=["pc-controls"]):
-            prompt = gr.Textbox(
-                label="Situation",
-                placeholder="Explain a difficult technical decision to a teammate…",
-                lines=3,
-            )
-            intensity = gr.Radio(
-                choices=["Subtle", "Balanced", "Expressive"],
-                value="Balanced",
-                label="Capsule intensity",
-            )
-            run = gr.Button("Respond as Signal / No. 01", elem_classes=["pc-button"])
-            output = gr.Markdown(label="Capsule response")
-            run.click(demo_reply, inputs=[prompt, intensity], outputs=output)
+
+        with gr.Tabs(
+            selected="create",
+            elem_classes=["pc-journey-tabs"],
+        ):
+            with gr.Tab("1 · Create", id="create"):
+                with gr.Column(elem_classes=["pc-tab-shell"]):
+                    gr.HTML(
+                        """
+                        <section class="pc-section-intro">
+                          <div>
+                            <span class="pc-step-chip">Step 1 · about 2 minutes</span>
+                            <h3>Create your capsule.</h3>
+                          </div>
+                          <p>
+                            Paste at least eight messages that sound like you. We remove
+                            obvious private details, infer communication patterns, and ask
+                            you to approve the small set used for live steering.
+                          </p>
+                        </section>
+                        """
+                    )
+                    with gr.Group(elem_classes=["pc-primary-panel"]):
+                        with gr.Row():
+                            capsule_name = gr.Textbox(
+                                label="1. Name your capsule",
+                                placeholder="e.g. Clear Signal",
+                            )
+                            speaker = gr.Textbox(
+                                label="Your name in the messages",
+                                value="You",
+                                info='For "Name: message" exports, enter that name.',
+                            )
+                        raw_messages = gr.Textbox(
+                            label="2. Paste messages that represent how you communicate",
+                            lines=10,
+                            placeholder=(
+                                "You: Thanks — I see the tradeoff. Let’s test the smallest "
+                                "version first.\n"
+                                "You: I’m not convinced yet; what would change your mind?\n"
+                                "…paste at least 8 varied messages, ideally around 20."
+                            ),
+                        )
+                        consent = gr.Checkbox(
+                            label="I own these messages or have permission to process them.",
+                            value=False,
+                        )
+                        gr.HTML(
+                            """
+                            <div class="pc-help">
+                              Your original paste exists only while you review this draft.
+                              Approval keeps the profile and selected contrast pairs, then
+                              discards the original and every unselected message.
+                            </div>
+                            """
+                        )
+                        analyze = gr.Button(
+                            "Analyze my communication style",
+                            elem_classes=["pc-button"],
+                        )
+                        creation_status = gr.Markdown(elem_classes=["pc-result-panel"])
+                        cleaned_preview = gr.Markdown()
+                        pair_table = gr.Dataframe(
+                            headers=["Keep", "Sounds like me", "Neutral comparison"],
+                            datatype=["bool", "str", "str"],
+                            interactive=True,
+                            label="3. Choose the examples that best represent you",
+                        )
+                        with gr.Accordion(
+                            "Fine-tune the inferred profile (optional)",
+                            open=False,
+                            elem_classes=["pc-advanced"],
+                        ):
+                            profile_json = gr.JSON(label="Profile evidence")
+                            gr.Markdown(
+                                "Adjust only what feels inaccurate. These are style controls, "
+                                "not a clinical or psychological assessment."
+                            )
+                            with gr.Row():
+                                openness = gr.Slider(0, 100, value=50, label="Openness")
+                                conscientiousness = gr.Slider(
+                                    0,
+                                    100,
+                                    value=50,
+                                    label="Conscientiousness",
+                                )
+                                expressiveness = gr.Slider(
+                                    0,
+                                    100,
+                                    value=50,
+                                    label="Expressiveness",
+                                )
+                            with gr.Row():
+                                agreeableness = gr.Slider(
+                                    0,
+                                    100,
+                                    value=50,
+                                    label="Agreeableness",
+                                )
+                                emotional_range = gr.Slider(
+                                    0,
+                                    100,
+                                    value=50,
+                                    label="Emotional range",
+                                )
+                                directness = gr.Slider(0, 100, value=50, label="Directness")
+                                formality = gr.Slider(0, 100, value=50, label="Formality")
+                        approve = gr.Button(
+                            "Approve capsule and continue to testing",
+                            elem_classes=["pc-button"],
+                        )
+
+                    with gr.Accordion(
+                        "Manage, export, or delete saved capsules",
+                        open=False,
+                        elem_classes=["pc-advanced", "pc-danger-zone"],
+                    ):
+                        reopened_profile = gr.JSON(label="Canonical private profile")
+                        reopened_pairs = gr.Dataframe(
+                            headers=["Approved", "Style exemplar", "Neutral contrast"],
+                            datatype=["bool", "str", "str"],
+                            interactive=False,
+                            label="Approved private steering pairs",
+                        )
+                        include_export_exemplars = gr.Checkbox(
+                            label="Include approved private exemplar pairs in this export",
+                            value=False,
+                        )
+                        with gr.Row():
+                            export_capsule = gr.Button("Export .persona and manifest")
+                            delete_confirmation = gr.Checkbox(
+                                label="I understand this permanently deletes the capsule.",
+                                value=False,
+                            )
+                            delete_capsule = gr.Button("Delete capsule")
+                        with gr.Row():
+                            persona_export = gr.File(label=".persona export")
+                            manifest_export = gr.File(label="Compatibility manifest")
+
+            with gr.Tab("2 · Test", id="test"):
+                with gr.Column(elem_classes=["pc-tab-shell"]):
+                    gr.HTML(
+                        """
+                        <section class="pc-section-intro">
+                          <div>
+                            <span class="pc-step-chip">Step 2 · the signature demo</span>
+                            <h3>See your steering vector work.</h3>
+                          </div>
+                          <p>
+                            Ask one question and compare MiniCPM's normal answer with
+                            the same model steered by your approved capsule. Start at
+                            0.85; move the slider only after reading the first result.
+                          </p>
+                        </section>
+                        """
+                    )
+                    with gr.Group(elem_classes=["pc-primary-panel"]):
+                        live_prompt = gr.Textbox(
+                            label="What should both versions answer?",
+                            value=(
+                                "Explain why a small team should test the riskiest "
+                                "assumption before building the full product."
+                            ),
+                            lines=3,
+                        )
+                        live_strength = gr.Slider(
+                            -1.5,
+                            1.5,
+                            value=0.85,
+                            step=0.05,
+                            label="How strongly should the capsule steer the response?",
+                            info="0 is unchanged. Values above ±1.1 may reduce coherence.",
+                        )
+                        live_run = gr.Button(
+                            "Run the before-and-after comparison",
+                            elem_classes=["pc-button"],
+                        )
+                        live_status = gr.Markdown(elem_classes=["pc-result-panel"])
+                        with gr.Row():
+                            baseline_output = gr.Textbox(
+                                label="Before · MiniCPM baseline",
+                                lines=9,
+                            )
+                            steered_output = gr.Textbox(
+                                label="After · your live-steered response",
+                                lines=9,
+                            )
+                    with gr.Accordion(
+                        "How the live vector was applied",
+                        open=False,
+                        elem_classes=["pc-advanced"],
+                    ):
+                        gr.Markdown(
+                            "These diagnostics prove the directions were derived for this "
+                            "request, applied across five layers, and removed afterward."
+                        )
+                        vector_diagnostics = gr.JSON(
+                            label="Request-scoped vector diagnostics",
+                        )
+
+                    with gr.Accordion(
+                        "Try the offline sample capsule",
+                        open=False,
+                        elem_classes=["pc-advanced"],
+                    ):
+                        gr.Markdown(
+                            "No provider call. Use this only to understand the interaction "
+                            "while a model is cold or unavailable."
+                        )
+                        prompt = gr.Textbox(
+                            label="Situation",
+                            placeholder="Explain a difficult technical decision to a teammate…",
+                            lines=3,
+                        )
+                        intensity = gr.Radio(
+                            choices=["Subtle", "Balanced", "Expressive"],
+                            value="Balanced",
+                            label="Capsule intensity",
+                        )
+                        run = gr.Button(
+                            "Respond as the sample capsule",
+                            elem_classes=["pc-button"],
+                        )
+                        output = gr.Markdown(label="Capsule response")
+                        run.click(demo_reply, inputs=[prompt, intensity], outputs=output)
+
+                    with gr.Accordion(
+                        "Fuse two capsules",
+                        open=False,
+                        elem_classes=["pc-advanced"],
+                    ):
+                        gr.Markdown(
+                            "Combine two compatible personality directions into a new, "
+                            "editable private capsule."
+                        )
+                        with gr.Row():
+                            fusion_source_a = gr.Dropdown(label="Fusion source A", choices=[])
+                            fusion_source_b = gr.Dropdown(label="Fusion source B", choices=[])
+                        fusion_weight = gr.Slider(
+                            0,
+                            100,
+                            value=50,
+                            step=5,
+                            label="Source A percentage",
+                        )
+                        fusion_name = gr.Textbox(
+                            label="Fused capsule name",
+                            placeholder="e.g. Clear Spark",
+                        )
+                        fusion_prompt = gr.Textbox(
+                            label="Shared generation prompt",
+                            placeholder="Explain the next useful experiment.",
+                            lines=3,
+                        )
+                        fusion_voice = gr.Radio(
+                            choices=["none", "source_a", "source_b", "alternate"],
+                            value="none",
+                            label="Speaking voice strategy",
+                            info=(
+                                "Voices are selected from permitted sources, "
+                                "never mathematically blended."
+                            ),
+                        )
+                        with gr.Row():
+                            check_fusion = gr.Button("Check compatibility")
+                            create_fusion = gr.Button(
+                                "Generate and save fusion",
+                                elem_classes=["pc-button"],
+                            )
+                        fusion_status = gr.Markdown("Choose two available source capsules.")
+                        fusion_response = gr.Textbox(label="Fused MiniCPM response", lines=8)
+                        fusion_diagnostics = gr.JSON(label="Fusion diagnostics")
+                        with gr.Row():
+                            fusion_card = gr.Image(
+                                label="Fused collectible card",
+                                type="filepath",
+                            )
+                            fusion_social = gr.Image(
+                                label="Fused social preview",
+                                type="filepath",
+                            )
+
+                    with gr.Accordion(
+                        "Battle two capsules with Nemotron",
+                        open=False,
+                        elem_classes=["pc-advanced"],
+                    ):
+                        gr.Markdown(
+                            "MiniCPM answers once per capsule. Nemotron judges both "
+                            "anonymous orders for style, quality, adherence, and safety."
+                        )
+                        with gr.Row():
+                            battle_source_a = gr.Dropdown(label="Battle capsule A", choices=[])
+                            battle_source_b = gr.Dropdown(label="Battle capsule B", choices=[])
+                        battle_challenge = gr.Textbox(
+                            label="Battle challenge",
+                            value=(
+                                "Explain why a small team should test the riskiest assumption "
+                                "before committing to a large launch."
+                            ),
+                            lines=3,
+                        )
+                        run_battle = gr.Button(
+                            "Run blinded Nemotron battle",
+                            elem_classes=["pc-button"],
+                        )
+                        battle_status = gr.Markdown()
+                        battle_result = gr.JSON(label="Order-swapped game result")
+
+            with gr.Tab("3 · Bring it to life", id="share"):
+                with gr.Column(elem_classes=["pc-tab-shell"]):
+                    gr.HTML(
+                        """
+                        <section class="pc-section-intro">
+                          <div>
+                            <span class="pc-step-chip">Step 3 · make it tangible</span>
+                            <h3>See it. Hear it. Share it.</h3>
+                          </div>
+                          <p>
+                            Start with the collectible card. Voice cloning and public
+                            sharing remain separate, explicit choices so nothing leaves
+                            your private workspace by accident.
+                          </p>
+                        </section>
+                        """
+                    )
+                    with gr.Group(elem_classes=["pc-primary-panel"]):
+                        gr.Markdown("### Generate the collectible card")
+                        gr.Markdown(
+                            "FLUX receives approved descriptors and style dimensions, "
+                            "never your private messages."
+                        )
+                        with gr.Row():
+                            card_variation = gr.Dropdown(
+                                choices=["signal", "archive", "kinetic"],
+                                value="signal",
+                                label="Visual direction",
+                            )
+                            card_seed = gr.Number(
+                                value=7613,
+                                precision=0,
+                                label="Visual seed",
+                            )
+                        generate_card = gr.Button(
+                            "Generate my collectible card",
+                            elem_classes=["pc-button"],
+                        )
+                        card_status = gr.Markdown(elem_classes=["pc-result-panel"])
+                        with gr.Row():
+                            interactive_card = gr.Image(
+                                label="Capsule card · 768×1024",
+                                type="filepath",
+                            )
+                            social_card = gr.Image(
+                                label="X preview · 1200×628",
+                                type="filepath",
+                            )
+
+                    with gr.Accordion(
+                        "Add an authorized ElevenLabs voice",
+                        open=False,
+                        elem_classes=["pc-advanced"],
+                    ):
+                        gr.Markdown(
+                            "Use only your own voice or a recording you have explicit "
+                            "permission to clone. A quiet 30-second sample works best."
+                        )
+                        voice_audio = gr.Audio(
+                            sources=["upload", "microphone"],
+                            type="filepath",
+                            label="Authorized voice recording",
+                        )
+                        voice_consent = gr.Checkbox(
+                            label="I own this voice or have explicit permission to clone it.",
+                            value=False,
+                        )
+                        voice_retention = gr.Radio(
+                            choices=["temporary", "retained"],
+                            value="temporary",
+                            label="Clone lifecycle",
+                            info=(
+                                f"Temporary clones expire after "
+                                f"{settings.voice_temporary_hours} hours."
+                            ),
+                        )
+                        signature_line = gr.Textbox(
+                            label="First line to speak",
+                            value="Small steps, clear signal, real momentum.",
+                            lines=2,
+                        )
+                        create_voice = gr.Button(
+                            "Create ElevenLabs voice",
+                            elem_classes=["pc-button"],
+                        )
+                        voice_status = gr.Markdown()
+                        voice_output = gr.Audio(
+                            label="Synthetic capsule speech",
+                            type="filepath",
+                        )
+                        speech_text = gr.Textbox(
+                            label="Speak another response",
+                            placeholder="Enter up to 1000 characters.",
+                            lines=3,
+                        )
+                        with gr.Row():
+                            synthesize_voice = gr.Button("Generate synthetic speech")
+                            delete_voice = gr.Button("Delete ElevenLabs voice")
+
+                    with gr.Accordion(
+                        "Preview and publish a shareable capsule",
+                        open=False,
+                        elem_classes=["pc-advanced"],
+                    ):
+                        gr.Markdown(
+                            "Choose exactly what becomes public. Private messages, "
+                            "evidence, owner IDs, and provider references never travel."
+                        )
+                        with gr.Row():
+                            publish_summary = gr.Checkbox(
+                                label="Public summary",
+                                value=True,
+                            )
+                            publish_descriptors = gr.Checkbox(
+                                label="Public descriptors",
+                                value=True,
+                            )
+                            publish_dimensions = gr.Checkbox(
+                                label="Public style dimensions",
+                                value=False,
+                            )
+                            publish_card = gr.Checkbox(
+                                label="Public social card",
+                                value=True,
+                            )
+                            publish_voice = gr.Checkbox(
+                                label="Public synthetic voice sample",
+                                value=False,
+                            )
+                        preview_publish = gr.Button("Preview exactly what will be public")
+                        public_preview = gr.JSON(label="Fields visible without login")
+                        publish_confirmation = gr.Checkbox(
+                            label="I reviewed this projection and want to make it public.",
+                            value=False,
+                        )
+                        with gr.Row():
+                            publish_capsule = gr.Button(
+                                "Publish stable capsule URL",
+                                elem_classes=["pc-button"],
+                            )
+                            unpublish_capsule = gr.Button("Unpublish capsule")
+                        publish_status = gr.Markdown()
+
+            with gr.Tab("Advanced lab", id="lab"):
+                with gr.Column(elem_classes=["pc-tab-shell"]):
+                    gr.HTML(
+                        """
+                        <section class="pc-section-intro">
+                          <div>
+                            <span class="pc-step-chip">Optional · compute intensive</span>
+                            <h3>Train a Deep Capsule.</h3>
+                          </div>
+                          <p>
+                            The Quick Capsule already works without training. Use this
+                            asynchronous Modal job only when you have reviewed the estimate
+                            and want a private adapter evaluated against held-out data.
+                          </p>
+                        </section>
+                        """
+                    )
+                    with gr.Group(elem_classes=["pc-primary-panel"]):
+                        deep_visual_lora = gr.Checkbox(
+                            label="Also request optional personal visual LoRA",
+                            value=False,
+                            info=(
+                                "Requires a separately reviewed image dataset. "
+                                "Without one, only the writing adapter is requested."
+                            ),
+                        )
+                        deep_idempotency_key = gr.Textbox(
+                            label="Job idempotency key",
+                            value=f"deep-{uuid4().hex}",
+                        )
+                        estimate_deep = gr.Button("Estimate time and Modal credits")
+                        deep_status = gr.Markdown(elem_classes=["pc-result-panel"])
+                        deep_job = gr.JSON(label="Resumable job state")
+                        deep_confirmation = gr.Checkbox(
+                            label=("I reviewed the estimate and want to start this Modal job."),
+                            value=False,
+                        )
+                        with gr.Row():
+                            start_deep = gr.Button(
+                                "Start Deep Capsule",
+                                elem_classes=["pc-button"],
+                            )
+                            poll_deep = gr.Button("Refresh job status")
+                            cancel_deep = gr.Button("Cancel job")
 
         analysis_outputs = [
             cleaned_preview,
@@ -1683,21 +2099,28 @@ def build_demo(
 
             def load_private_library(
                 profile: gr.OAuthProfile | None,
-            ) -> tuple[str, str, object, object, object, object, object]:
+            ) -> tuple[str, str, object, object, object, object, object, CapsuleRecord | None]:
                 principal = identity_gateway.resolve(profile)
                 voice_service.cleanup_expired(principal)
                 choices = _capsule_choices(principal, capsule_library)
                 steerable_choices = _steerable_capsule_choices(principal, capsule_library)
+                selected_value = choices[0][1] if choices else None
+                selected_capsule = (
+                    capsule_library.get_capsule(principal, selected_value)
+                    if principal is not None and selected_value
+                    else None
+                )
                 first_value = steerable_choices[0][1] if steerable_choices else None
                 second_value = steerable_choices[1][1] if len(steerable_choices) > 1 else None
                 return (
                     _account_html(principal),
                     _library_html(principal, capsule_library),
-                    gr.Dropdown(choices=choices, value=None),
+                    gr.Dropdown(choices=choices, value=selected_value),
                     gr.Dropdown(choices=steerable_choices, value=first_value),
                     gr.Dropdown(choices=steerable_choices, value=second_value),
                     gr.Dropdown(choices=steerable_choices, value=first_value),
                     gr.Dropdown(choices=steerable_choices, value=second_value),
+                    selected_capsule,
                 )
 
             demo.load(
@@ -1711,6 +2134,7 @@ def build_demo(
                     fusion_source_b,
                     battle_source_a,
                     battle_source_b,
+                    approved_capsule_state,
                 ],
             )
 
@@ -2132,21 +2556,37 @@ def build_demo(
             )
         else:
 
-            def load_local_library() -> tuple[str, str, object, object, object, object, object]:
+            def load_local_library() -> tuple[
+                str,
+                str,
+                object,
+                object,
+                object,
+                object,
+                object,
+                CapsuleRecord | None,
+            ]:
                 principal = identity_gateway.resolve_local()
                 voice_service.cleanup_expired(principal)
                 choices = _capsule_choices(principal, capsule_library)
                 steerable_choices = _steerable_capsule_choices(principal, capsule_library)
+                selected_value = choices[0][1] if choices else None
+                selected_capsule = (
+                    capsule_library.get_capsule(principal, selected_value)
+                    if principal is not None and selected_value
+                    else None
+                )
                 first_value = steerable_choices[0][1] if steerable_choices else None
                 second_value = steerable_choices[1][1] if len(steerable_choices) > 1 else None
                 return (
                     _account_html(principal),
                     _library_html(principal, capsule_library),
-                    gr.Dropdown(choices=choices, value=None),
+                    gr.Dropdown(choices=choices, value=selected_value),
                     gr.Dropdown(choices=steerable_choices, value=first_value),
                     gr.Dropdown(choices=steerable_choices, value=second_value),
                     gr.Dropdown(choices=steerable_choices, value=first_value),
                     gr.Dropdown(choices=steerable_choices, value=second_value),
+                    selected_capsule,
                 )
 
             demo.load(
@@ -2160,6 +2600,7 @@ def build_demo(
                     fusion_source_b,
                     battle_source_a,
                     battle_source_b,
+                    approved_capsule_state,
                 ],
             )
 
