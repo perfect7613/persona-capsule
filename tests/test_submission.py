@@ -36,7 +36,7 @@ def test_space_deployment_plan_uses_official_org_and_secret_names_only() -> None
     deployer = _load_deployer()
     plan = deployer.deployment_plan()
     assert plan["space_id"] == "build-small-hackathon/persona-capsule"
-    assert plan["hardware"] == "zero-a10g"
+    assert plan["hardware"] == "cpu-basic"
     assert plan["oauth"] is True
     assert "HF_TOKEN" in plan["secret_names"]
     assert not any("sk_" in value or "hf_" in value for value in plan["secret_names"])

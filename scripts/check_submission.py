@@ -36,7 +36,7 @@ def collect_errors(*, strict: bool) -> list[str]:
     for marker in (
         "sdk: gradio",
         "hf_oauth: true",
-        "suggested_hardware: zero-a10g",
+        "suggested_hardware: cpu-basic",
         "app_file: app.py",
     ):
         if marker not in text:

@@ -41,7 +41,7 @@ def deployment_plan() -> dict[str, object]:
         "space_id": SPACE_ID,
         "visibility": "public",
         "sdk": "gradio",
-        "hardware": "zero-a10g",
+        "hardware": "cpu-basic",
         "oauth": True,
         "secret_names": [
             "ELEVENLABS_API_KEY",
@@ -130,7 +130,7 @@ def deploy(*, dry_run: bool) -> None:
         ignore_patterns=IGNORED,
         commit_message="Deploy Persona Capsule hackathon Space",
     )
-    api.request_space_hardware(SPACE_ID, "zero-a10g")
+    api.request_space_hardware(SPACE_ID, "cpu-basic")
     print(f"Deployed {SPACE_ID} at commit {commit.oid}.")
 
 

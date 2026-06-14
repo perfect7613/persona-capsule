@@ -9,7 +9,7 @@ python_version: "3.12"
 app_file: app.py
 pinned: false
 hf_oauth: true
-suggested_hardware: zero-a10g
+suggested_hardware: cpu-basic
 models:
   - openbmb/MiniCPM4.1-8B
   - black-forest-labs/FLUX.2-klein-4B
