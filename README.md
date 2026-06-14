@@ -1,7 +1,7 @@
 ---
 title: Persona Capsule
 emoji: 🧬
-colorFrom: orange
+colorFrom: red
 colorTo: green
 sdk: gradio
 sdk_version: 6.0.1
