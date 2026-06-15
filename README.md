@@ -43,7 +43,7 @@ being. It is a user-controlled model of communication style.
 
 ## Team
 
-- [Ame Muké](https://huggingface.co/perfect7613)
+- [Amey Muke](https://huggingface.co/perfect7613)
 - [Oyeshani](https://huggingface.co/oyeshani)
 
 ## The Idea, Simply
