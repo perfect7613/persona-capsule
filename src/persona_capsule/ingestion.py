@@ -251,6 +251,28 @@ def infer_style_profile(messages: tuple[MessageRecord, ...]) -> StyleProfile:
 
 def neutralize_style(text: str) -> str:
     neutral = text
+    archaic_replacements = (
+        (r"\bi pray thee\b[,]?\s*", ""),
+        (r"\bhark\b[,!]?\s*", ""),
+        (r"\blet us\b", "we should"),
+        (r"\bthine\b", "your"),
+        (r"\bthy\b", "your"),
+        (r"\bthee\b", "you"),
+        (r"\bthou\b", "you"),
+        (r"\bdost\b", "do"),
+        (r"\bdoth\b", "does"),
+        (r"\bhast\b", "have"),
+        (r"\bhath\b", "has"),
+        (r"\bshalt\b", "will"),
+        (r"\bart\b", "are"),
+        (r"\bere\b", "before"),
+        (r"\bwhilst\b", "while"),
+        (r"\bwherefore\b", "why"),
+        (r"\bbuildest\b", "build"),
+        (r"\bstandest\b", "stand"),
+    )
+    for pattern, replacement in archaic_replacements:
+        neutral = re.sub(pattern, replacement, neutral, flags=re.I)
     for contraction, expanded in _CONTRACTIONS.items():
         neutral = re.sub(re.escape(contraction), expanded, neutral, flags=re.I)
     neutral = re.sub(r"[!?]{2,}", ".", neutral)
@@ -264,6 +286,8 @@ def neutralize_style(text: str) -> str:
         r"\b(?:really|very|honestly|basically|literally)\b\s*", "", neutral, flags=re.I
     )
     neutral = re.sub(r"\s+", " ", neutral).strip()
+    if neutral:
+        neutral = neutral[0].upper() + neutral[1:]
     return ensure_distinct_contrast(text, neutral)[0]
 
 

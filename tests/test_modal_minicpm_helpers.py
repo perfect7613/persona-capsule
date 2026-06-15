@@ -61,8 +61,8 @@ def test_vector_calibration_compresses_extreme_magnitudes() -> None:
     runtime = _load_runtime_module()
 
     assert runtime._calibrated_vector_scale(0.01) == 0.5
-    assert runtime._calibrated_vector_scale(4.0) == 2.0
-    assert runtime._calibrated_vector_scale(100.0) == 3.0
+    assert runtime._calibrated_vector_scale(4.0) == 4.0
+    assert runtime._calibrated_vector_scale(100.0) == 12.0
 
 
 def test_steering_changes_only_the_current_token() -> None:

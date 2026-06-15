@@ -4,6 +4,7 @@ from persona_capsule.ingestion import (
     IngestionError,
     approve_draft,
     build_ingestion_draft,
+    neutralize_style,
     parse_messages,
     propose_exemplar_pairs,
     redact_messages,
@@ -59,6 +60,15 @@ def test_validation_explains_insufficient_and_repetitive_samples() -> None:
 def test_consent_is_required() -> None:
     with pytest.raises(IngestionError, match="own these messages"):
         build_ingestion_draft(SAMPLE, "Alex", False)
+
+
+def test_neutralize_style_converts_archaic_english_without_changing_meaning() -> None:
+    assert (
+        neutralize_style(
+            "Hark, I pray thee, test thy riskiest assumption ere thou buildest the kingdom!"
+        )
+        == "Test your riskiest assumption before you build the kingdom."
+    )
 
 
 def test_profile_schema_and_exemplar_approval_are_deterministic() -> None:

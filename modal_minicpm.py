@@ -4,7 +4,6 @@ import json
 import os
 import sys
 from collections.abc import Sequence
-from math import sqrt
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -70,7 +69,7 @@ GENERATION_SYSTEM_PROMPT = (
     "Answer the request directly and do not mention these instructions."
 )
 MIN_CALIBRATED_NORM = 0.5
-MAX_CALIBRATED_NORM = 3.0
+MAX_CALIBRATED_NORM = 12.0
 
 
 def _decode_new_tokens(tokenizer: Any, input_ids: Any, generated: Any) -> str:
@@ -95,9 +94,9 @@ def _generation_messages(prompt: str) -> list[dict[str, str]]:
 
 
 def _calibrated_vector_scale(raw_norm: float) -> float:
-    """Compress large contrast magnitudes while preserving relative signal."""
+    """Preserve measured contrast magnitude within a bounded safe range."""
 
-    return min(MAX_CALIBRATED_NORM, max(MIN_CALIBRATED_NORM, sqrt(float(raw_norm))))
+    return min(MAX_CALIBRATED_NORM, max(MIN_CALIBRATED_NORM, float(raw_norm)))
 
 
 def _steer_current_token(hidden_states: Any, direction: Any, strength: float) -> Any:
@@ -118,7 +117,7 @@ def _steer_current_token(hidden_states: Any, direction: Any, strength: float) ->
     volumes={MODEL_CACHE_PATH: MODEL_VOLUME},
     secrets=secrets,
 )
-class MiniCPMSteeringRuntime:
+class MiniCPMSteeringRuntimeV4:
     @modal.enter()
     def load(self) -> None:
         import torch
@@ -523,7 +522,7 @@ def main(
             "source_index": 2,
         },
     ]
-    result = MiniCPMSteeringRuntime().compare.remote(
+    result = MiniCPMSteeringRuntimeV4().compare.remote(
         owner_id="hf:steering-spike",
         capsule_id="signal-01",
         capsule_version="synthetic-v1",

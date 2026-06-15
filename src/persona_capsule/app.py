@@ -51,7 +51,8 @@ class PublicChallengeGuess(BaseModel):
 
 PUBLIC_CHALLENGE_PROMPT = (
     "A friend is stuck between planning longer and testing a small reversible idea. "
-    "Give them one practical recommendation."
+    "Give them one practical recommendation in your natural communication style, "
+    "with enough personality that someone who knows you might recognize it."
 )
 
 
