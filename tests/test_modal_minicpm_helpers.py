@@ -65,7 +65,7 @@ def test_vector_calibration_compresses_extreme_magnitudes() -> None:
     assert runtime._calibrated_vector_scale(100.0) == 12.0
 
 
-def test_steering_changes_only_the_current_token() -> None:
+def test_steering_changes_all_active_tokens_without_mutating_input() -> None:
     import pytest
 
     torch = pytest.importorskip("torch")
@@ -74,8 +74,10 @@ def test_steering_changes_only_the_current_token() -> None:
     hidden_states = torch.zeros((1, 3, 2))
     direction = torch.tensor([2.0, -1.0])
 
-    steered = runtime._steer_current_token(hidden_states, direction, 0.5)
+    steered = runtime._steer_hidden_states(hidden_states, direction, 0.5)
 
-    assert torch.equal(steered[:, :2, :], hidden_states[:, :2, :])
-    assert torch.equal(steered[:, -1, :], torch.tensor([[1.0, -0.5]]))
+    assert torch.equal(
+        steered,
+        torch.tensor([[[1.0, -0.5], [1.0, -0.5], [1.0, -0.5]]]),
+    )
     assert torch.equal(hidden_states, torch.zeros((1, 3, 2)))

@@ -8,7 +8,7 @@ from persona_capsule.profile import ExemplarPair, ensure_distinct_contrast
 from persona_capsule.repository import CapsuleRecord
 
 MODAL_APP_NAME = "persona-capsule-minicpm"
-MODAL_CLASS_NAME = "MiniCPMSteeringRuntimeV4"
+MODAL_CLASS_NAME = "MiniCPMSteeringRuntimeV5"
 
 
 class ModalSteeringGateway:

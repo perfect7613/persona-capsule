@@ -99,14 +99,12 @@ def _calibrated_vector_scale(raw_norm: float) -> float:
     return min(MAX_CALIBRATED_NORM, max(MIN_CALIBRATED_NORM, float(raw_norm)))
 
 
-def _steer_current_token(hidden_states: Any, direction: Any, strength: float) -> Any:
+def _steer_hidden_states(hidden_states: Any, direction: Any, strength: float) -> Any:
     scaled = direction.to(
         device=hidden_states.device,
         dtype=hidden_states.dtype,
     ).view(1, 1, -1)
-    steered_states = hidden_states.clone()
-    steered_states[:, -1:, :] = steered_states[:, -1:, :] + strength * scaled
-    return steered_states
+    return hidden_states + strength * scaled
 
 
 @app.cls(
@@ -117,7 +115,7 @@ def _steer_current_token(hidden_states: Any, direction: Any, strength: float) ->
     volumes={MODEL_CACHE_PATH: MODEL_VOLUME},
     secrets=secrets,
 )
-class MiniCPMSteeringRuntimeV4:
+class MiniCPMSteeringRuntimeV5:
     @modal.enter()
     def load(self) -> None:
         import torch
@@ -297,7 +295,7 @@ class MiniCPMSteeringRuntimeV4:
     @staticmethod
     def _hook_factory(direction: Any, strength: float):
         def steer(_module: Any, _inputs: Any, output: tuple[Any, ...]):
-            steered_states = _steer_current_token(output[0], direction, strength)
+            steered_states = _steer_hidden_states(output[0], direction, strength)
             return (steered_states, *output[1:])
 
         return steer
@@ -522,7 +520,7 @@ def main(
             "source_index": 2,
         },
     ]
-    result = MiniCPMSteeringRuntimeV4().compare.remote(
+    result = MiniCPMSteeringRuntimeV5().compare.remote(
         owner_id="hf:steering-spike",
         capsule_id="signal-01",
         capsule_version="synthetic-v1",
