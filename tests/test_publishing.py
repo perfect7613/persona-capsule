@@ -120,6 +120,11 @@ def test_publish_requires_preview_confirmation_and_keeps_stable_slug(
     assert repository.get_public_by_slug(first.public_slug).capsule_id == record.capsule_id
     assert PRIVATE_SENTINEL not in str(first.published_projection)
 
+    owner_namespace = sha256(OWNER.user_id.encode()).hexdigest()[:24]
+    local_image = tmp_path / "artifacts" / owner_namespace / record.capsule_id / "card-social.png"
+    local_image.unlink()
+    assert service.public_image_path(first).read_bytes()
+
 
 def test_public_routes_render_crawler_metadata_and_unpublish(
     tmp_path: Path,

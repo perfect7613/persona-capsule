@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -244,6 +245,21 @@ class CapsuleRepository(Protocol):
 
     def get_public_by_slug(self, slug: str) -> CapsuleRecord: ...
 
+    def persist_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+        source_path: Path,
+    ) -> None: ...
+
+    def resolve_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+    ) -> Path: ...
+
 
 class InMemoryCapsuleRepository:
     """Thread-safe repository for tests and explicitly ephemeral sessions."""
@@ -251,6 +267,7 @@ class InMemoryCapsuleRepository:
     def __init__(self, records: Iterable[CapsuleRecord] = ()) -> None:
         self._lock = RLock()
         self._records = {record.capsule_id: record.canonicalized() for record in records}
+        self._artifacts: dict[tuple[str, str, str], bytes] = {}
 
     def list_for_owner(self, owner_id: str) -> tuple[CapsuleRecord, ...]:
         with self._lock:
@@ -293,6 +310,9 @@ class InMemoryCapsuleRepository:
             if record.owner_id != owner_id:
                 raise CapsuleNotFoundError(capsule_id)
             self._records.pop(capsule_id)
+            for key in tuple(self._artifacts):
+                if key[:2] == (owner_id, capsule_id):
+                    self._artifacts.pop(key)
         return True
 
     def get_public_by_slug(self, slug: str) -> CapsuleRecord:
@@ -301,6 +321,32 @@ class InMemoryCapsuleRepository:
                 if record.is_published and record.public_slug == slug:
                     return record
         raise CapsuleNotFoundError(slug)
+
+    def persist_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+        source_path: Path,
+    ) -> None:
+        self._artifacts[(owner_id, capsule_id, Path(reference).name)] = source_path.read_bytes()
+
+    def resolve_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+    ) -> Path:
+        content = self._artifacts.get((owner_id, capsule_id, Path(reference).name))
+        if content is None:
+            raise CapsuleNotFoundError(reference)
+        with NamedTemporaryFile(
+            prefix="persona-capsule-public-",
+            suffix=Path(reference).suffix,
+            delete=False,
+        ) as temporary:
+            temporary.write(content)
+            return Path(temporary.name)
 
 
 class FileCapsuleRepository:
@@ -411,6 +457,37 @@ class FileCapsuleRepository:
                 return record
         raise CapsuleNotFoundError(slug)
 
+    def _artifact_path(self, owner_id: str, capsule_id: str, reference: str) -> Path:
+        return (
+            self._artifacts_root
+            / self._owner_namespace(owner_id)
+            / capsule_id
+            / Path(reference).name
+        )
+
+    def persist_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+        source_path: Path,
+    ) -> None:
+        destination = self._artifact_path(owner_id, capsule_id, reference)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if source_path.resolve() != destination.resolve():
+            shutil.copyfile(source_path, destination)
+
+    def resolve_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+    ) -> Path:
+        path = self._artifact_path(owner_id, capsule_id, reference)
+        if not path.is_file():
+            raise CapsuleNotFoundError(reference)
+        return path
+
 
 class HubApiLike(Protocol):
     def create_repo(self, **kwargs: Any) -> Any: ...
@@ -447,6 +524,9 @@ class HuggingFaceDatasetCapsuleRepository:
 
     def _path(self, owner_id: str, capsule_id: str) -> str:
         return f"capsules/{self._owner_namespace(owner_id)}/{capsule_id}.json"
+
+    def _artifact_path(self, owner_id: str, capsule_id: str, reference: str) -> str:
+        return f"artifacts/{self._owner_namespace(owner_id)}/{capsule_id}/{Path(reference).name}"
 
     def _ensure_repo(self) -> None:
         if self._repo_ready:
@@ -529,7 +609,8 @@ class HuggingFaceDatasetCapsuleRepository:
 
     def delete_for_owner(self, owner_id: str, capsule_id: str) -> bool:
         path = self._path(owner_id, capsule_id)
-        if path not in self._files():
+        files = self._files()
+        if path not in files:
             return False
         self._api.delete_file(
             path,
@@ -538,6 +619,16 @@ class HuggingFaceDatasetCapsuleRepository:
             token=self._token,
             commit_message=f"Delete capsule {capsule_id}",
         )
+        artifact_prefix = f"artifacts/{self._owner_namespace(owner_id)}/{capsule_id}/"
+        for artifact_path in files:
+            if artifact_path.startswith(artifact_prefix):
+                self._api.delete_file(
+                    artifact_path,
+                    repo_id=self._repo_id,
+                    repo_type="dataset",
+                    token=self._token,
+                    commit_message=f"Delete capsule artifact {capsule_id}",
+                )
         return True
 
     def get_public_by_slug(self, slug: str) -> CapsuleRecord:
@@ -548,3 +639,42 @@ class HuggingFaceDatasetCapsuleRepository:
             if record.is_published and record.public_slug == slug:
                 return record
         raise CapsuleNotFoundError(slug)
+
+    def persist_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+        source_path: Path,
+    ) -> None:
+        self._ensure_repo()
+        self._api.upload_file(
+            path_or_fileobj=source_path.read_bytes(),
+            path_in_repo=self._artifact_path(
+                owner_id,
+                capsule_id,
+                reference,
+            ),
+            repo_id=self._repo_id,
+            repo_type="dataset",
+            token=self._token,
+            commit_message=f"Save capsule artifact {capsule_id}",
+        )
+
+    def resolve_artifact(
+        self,
+        owner_id: str,
+        capsule_id: str,
+        reference: str,
+    ) -> Path:
+        path = self._artifact_path(owner_id, capsule_id, reference)
+        try:
+            local_path = self._downloader(
+                repo_id=self._repo_id,
+                filename=path,
+                repo_type="dataset",
+                token=self._token,
+            )
+        except (EntryNotFoundError, RepositoryNotFoundError) as exc:
+            raise CapsuleNotFoundError(reference) from exc
+        return Path(local_path)

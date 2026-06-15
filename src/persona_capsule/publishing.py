@@ -87,6 +87,10 @@ class PublishingService:
             raise ValueError("Confirm the field-level public preview before publishing.")
         record = self._capsule_library.get_capsule(principal, capsule_id)
         projection = self.preview(principal, capsule_id, selection)
+        if projection.get("social_image"):
+            self._persist_artifact(record, record.social_image_ref)
+        if projection.get("voice_sample"):
+            self._persist_artifact(record, record.voice_sample_ref)
         slug = record.public_slug or token_urlsafe(18)
         return self._capsule_library.save_capsule(
             principal,
@@ -136,37 +140,48 @@ class PublishingService:
             raise CapsuleNotFoundError(slug)
         return record
 
-    def public_image_path(self, record: CapsuleRecord) -> Path:
-        projection = record.published_projection or {}
-        if not projection.get("social_image") or not record.social_image_ref:
-            raise CapsuleNotFoundError(record.public_slug)
+    def _local_artifact_path(self, record: CapsuleRecord, reference: str) -> Path:
         owner_namespace = sha256(record.owner_id.encode()).hexdigest()[:24]
-        path = (
+        return (
             self._artifact_root
             / "artifacts"
             / owner_namespace
             / record.capsule_id
-            / Path(record.social_image_ref).name
+            / Path(reference).name
         )
-        if not path.is_file():
+
+    def _persist_artifact(self, record: CapsuleRecord, reference: str) -> None:
+        source_path = self._local_artifact_path(record, reference)
+        if not source_path.is_file():
+            raise CapsuleNotFoundError(reference)
+        self._repository.persist_artifact(
+            record.owner_id,
+            record.capsule_id,
+            reference,
+            source_path,
+        )
+
+    def _resolve_artifact(self, record: CapsuleRecord, reference: str) -> Path:
+        local_path = self._local_artifact_path(record, reference)
+        if local_path.is_file():
+            return local_path
+        return self._repository.resolve_artifact(
+            record.owner_id,
+            record.capsule_id,
+            reference,
+        )
+
+    def public_image_path(self, record: CapsuleRecord) -> Path:
+        projection = record.published_projection or {}
+        if not projection.get("social_image") or not record.social_image_ref:
             raise CapsuleNotFoundError(record.public_slug)
-        return path
+        return self._resolve_artifact(record, record.social_image_ref)
 
     def public_audio_path(self, record: CapsuleRecord) -> Path:
         projection = record.published_projection or {}
         if not projection.get("voice_sample") or not record.voice_sample_ref:
             raise CapsuleNotFoundError(record.public_slug)
-        owner_namespace = sha256(record.owner_id.encode()).hexdigest()[:24]
-        path = (
-            self._artifact_root
-            / "artifacts"
-            / owner_namespace
-            / record.capsule_id
-            / Path(record.voice_sample_ref).name
-        )
-        if not path.is_file():
-            raise CapsuleNotFoundError(record.public_slug)
-        return path
+        return self._resolve_artifact(record, record.voice_sample_ref)
 
     def render_public_html(self, record: CapsuleRecord) -> str:
         projection = record.published_projection or {}

@@ -152,8 +152,25 @@ def test_hugging_face_adapter_uses_private_dataset_paths(tmp_path: Path) -> None
     )
 
     saved = repository.save_for_owner(ALICE, _record())
+    artifact = tmp_path / "generated.png"
+    artifact.write_bytes(b"generated-image")
+    repository.persist_artifact(
+        ALICE,
+        saved.capsule_id,
+        "card/card-social.png",
+        artifact,
+    )
     assert api.created[0]["private"] is True
     assert api.created[0]["repo_type"] == "dataset"
     assert ALICE not in api.uploaded[0]["path_in_repo"]
     assert repository.get_for_owner(ALICE, saved.capsule_id) == saved
+    assert (
+        repository.resolve_artifact(
+            ALICE,
+            saved.capsule_id,
+            "card/card-social.png",
+        ).read_bytes()
+        == b"generated-image"
+    )
     assert repository.delete_for_owner(ALICE, saved.capsule_id) is True
+    assert any(path.startswith("artifacts/") for path in api.deleted)
