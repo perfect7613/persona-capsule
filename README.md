@@ -450,6 +450,8 @@ for public evidence.
 - [Codex usage record](./CODEX_USAGE.md)
 - [Target Hugging Face Space](https://huggingface.co/spaces/build-small-hackathon/persona-capsule)
 - [Demo script](./docs/DEMO_SCRIPT.md)
+- [X launch thread draft](./docs/SOCIAL_POST_DRAFT.md)
+- [Substack article draft](./docs/SUBSTACK_DRAFT.md)
 - [Manual acceptance checklist](./docs/MANUAL_ACCEPTANCE.md)
 
 The final public demo-video URL and X/social-post URL are intentionally added
