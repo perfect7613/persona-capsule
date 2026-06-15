@@ -57,6 +57,7 @@ def deployment_plan() -> dict[str, object]:
             "ENABLE_FUSION",
             "ENABLE_STEERING",
             "ENABLE_VOICE",
+            "GRADIO_SSR_MODE",
             "HF_CAPSULE_REPO_ID",
             "PUBLIC_BASE_URL",
         ],
@@ -109,6 +110,7 @@ def deploy(*, dry_run: bool) -> None:
         "ENABLE_FUSION": os.environ.get("ENABLE_FUSION", "true"),
         "ENABLE_STEERING": os.environ.get("ENABLE_STEERING", "true"),
         "ENABLE_VOICE": os.environ.get("ENABLE_VOICE", "true"),
+        "GRADIO_SSR_MODE": "false",
         "HF_CAPSULE_REPO_ID": data_repo,
         "PUBLIC_BASE_URL": f"https://huggingface.co/spaces/{SPACE_ID}",
     }

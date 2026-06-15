@@ -356,6 +356,7 @@ def create_app(
         ),
         path="/app",
         footer_links=[],
+        ssr_mode=False,
         theme=build_theme(),
         css=CSS,
     )

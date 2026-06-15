@@ -85,6 +85,7 @@ def test_landing_frontend_assets_are_served_from_mount_path() -> None:
         )
 
         assert asset_paths
+        assert "/_app/immutable/" not in response.text
         for asset_path in asset_paths:
             asset_response = client.get(f"/app/{asset_path}")
             assert asset_response.status_code == 200
