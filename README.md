@@ -46,11 +46,6 @@ being. It is a user-controlled model of communication style.
 - [Ame Muké](https://huggingface.co/perfect7613)
 - [Oyeshani](https://huggingface.co/oyeshani)
 
-[Product requirements](./PRD.md) ·
-[Technical audit](./PLAN_AUDIT.md) ·
-[Codex development record](./CODEX_USAGE.md) ·
-[GitHub issues](https://github.com/perfect7613/persona-capsule/issues)
-
 ## The Idea, Simply
 
 Most AI assistants can be told to "sound friendly" or "be concise." That is a
@@ -419,9 +414,7 @@ The project demonstrates meaningful use of:
 
 ## Built With Codex
 
-OpenAI Codex has been used to audit the original plan, verify current provider
-documentation, design the architecture, create the PRD and implementation
-issues, write code and tests, inspect visual output, and support deployment.
+OpenAI Codex has been used to audit the original plan, implementation, tests, inspect visual output, and support deployment.
 
 Codex-authored commits carry:
 
@@ -445,16 +438,6 @@ for public evidence.
 
 ## Project Links
 
-- [Approved PRD](./PRD.md)
-- [Canonical PRD discussion](https://github.com/perfect7613/persona-capsule/issues/1)
-- [Implementation issues](https://github.com/perfect7613/persona-capsule/issues)
-- [Technical plan audit](./PLAN_AUDIT.md)
-- [Codex usage record](./CODEX_USAGE.md)
+- [Demo Video](https://drive.google.com/file/d/1-LwVfTQL1AKCF-SB6jhGurTrKGsHsHH3/view?usp=sharing)
 - [Target Hugging Face Space](https://huggingface.co/spaces/build-small-hackathon/persona-capsule)
-
-The final public demo-video URL and X/social-post URL are intentionally added
-only after project-owner review. `scripts/check_submission.py --strict` blocks
-final submission until both are present.
-
-- Demo video: Pending project-owner review
-- Social post: Pending project-owner review
+- [Social Media Post](https://x.com/7613Perfect/status/2066635740801548326?s=20)
