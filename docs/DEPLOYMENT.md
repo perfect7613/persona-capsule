@@ -3,7 +3,7 @@
 ## Safety Gate
 
 Credentials previously pasted into chat or logs are compromised. Rotate the
-Hugging Face, Modal, and ElevenLabs credentials before any public deployment.
+Hugging Face and Modal credentials before any public deployment.
 Do not reuse the original values.
 
 Create a separate Hugging Face service token with only the access required for
@@ -36,7 +36,8 @@ uv run python scripts/deploy_space.py --dry-run
 
 Then create/update
 `build-small-hackathon/persona-capsule`, install Space Secrets and Variables,
-upload the repository with private paths excluded, and request ZeroGPU:
+upload the repository with private paths excluded, and use CPU Basic for the
+Gradio frontend while Modal handles GPU inference:
 
 ```bash
 uv run python scripts/deploy_space.py

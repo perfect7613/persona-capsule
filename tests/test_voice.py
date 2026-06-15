@@ -2,21 +2,17 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from elevenlabs.core.api_error import ApiError
 
 from persona_capsule.identity import Principal
 from persona_capsule.library import CapsuleLibrary
 from persona_capsule.repository import CapsuleRecord, InMemoryCapsuleRepository
 from persona_capsule.voice import (
     CapsuleVoiceService,
-    ElevenLabsVoiceProvider,
     InvalidVoiceAudioError,
+    ModalVoxCPMVoiceProvider,
     VoiceClone,
     VoiceError,
-    VoicePlanAccessError,
     VoiceProviderUnavailableError,
-    VoiceVerificationRequiredError,
-    _raise_provider_error,
 )
 
 OWNER = Principal("hf:owner", "owner", "test")
@@ -62,70 +58,46 @@ def _service(tmp_path: Path, provider: FakeVoiceProvider):
     return library, service, record, audio
 
 
-def test_real_sdk_adapter_calls_ivc_tts_and_delete_methods() -> None:
-    class Response:
-        voice_id = "real-sdk-id"
-        requires_verification = False
-        status = "ok"
+def test_modal_voxcpm_adapter_calls_reference_synthesis_and_delete(tmp_path: Path) -> None:
+    class RemoteMethod:
+        def __init__(self, handler):
+            self.handler = handler
 
-    class Ivc:
-        def __init__(self):
-            self.calls = []
+        def remote(self, **kwargs):
+            return self.handler(**kwargs)
 
-        def create(self, **kwargs):
-            self.calls.append(kwargs)
-            return Response()
+    calls: dict[str, list[dict]] = {"create": [], "synthesize": [], "delete": []}
 
-    class Voices:
-        def __init__(self):
-            self.ivc = Ivc()
-            self.deleted = []
+    class Runtime:
+        create_reference = RemoteMethod(
+            lambda **kwargs: (
+                calls["create"].append(kwargs)
+                or {"voice_id": "a" * 32}
+            )
+        )
+        synthesize = RemoteMethod(
+            lambda **kwargs: (
+                calls["synthesize"].append(kwargs)
+                or {"audio_bytes": b"real-audio"}
+            )
+        )
+        delete_reference = RemoteMethod(lambda **kwargs: calls["delete"].append(kwargs))
 
-        def delete(self, voice_id):
-            self.deleted.append(voice_id)
-            return Response()
+    sample = tmp_path / "sample.wav"
+    sample.write_bytes(b"reference-audio")
+    provider = ModalVoxCPMVoiceProvider()
+    provider._runtime = lambda: Runtime()
 
-    class TextToSpeech:
-        def __init__(self):
-            self.calls = []
-
-        def convert(self, **kwargs):
-            self.calls.append(kwargs)
-            return iter((b"real-", b"audio"))
-
-    class Client:
-        def __init__(self):
-            self.voices = Voices()
-            self.text_to_speech = TextToSpeech()
-
-    provider = ElevenLabsVoiceProvider("test-key")
-    provider._client = Client()
-
-    clone = provider.create_clone(name="Capsule", audio_paths=(Path("sample.wav"),))
+    clone = provider.create_clone(name="Capsule", audio_paths=(sample,))
     audio = provider.synthesize(voice_id=clone.voice_id, text="Hello")
     provider.delete_voice(clone.voice_id)
 
-    assert clone == VoiceClone("real-sdk-id", False)
+    assert clone == VoiceClone("a" * 32, False)
     assert audio == b"real-audio"
-    assert provider._client.voices.ivc.calls[0]["files"] == ["sample.wav"]
-    assert provider._client.text_to_speech.calls[0]["model_id"] == "eleven_multilingual_v2"
-    assert provider._client.voices.deleted == ["real-sdk-id"]
-
-
-def test_ivc_plan_error_is_not_reported_as_bad_credentials() -> None:
-    error = ApiError(
-        status_code=401,
-        body={
-            "detail": {
-                "type": "authorization_error",
-                "status": "ivc_not_permitted",
-                "message": "Instantly cloned voices are not available on your current plan.",
-            }
-        },
-    )
-
-    with pytest.raises(VoicePlanAccessError, match="current ElevenLabs plan"):
-        _raise_provider_error(error)
+    assert calls["create"][0]["audio_bytes"] == b"reference-audio"
+    assert calls["create"][0]["audio_suffix"] == ".wav"
+    assert calls["synthesize"] == [{"voice_id": "a" * 32, "text": "Hello"}]
+    assert calls["delete"] == [{"voice_id": "a" * 32}]
 
 
 def test_clone_requires_consent_and_supported_audio(tmp_path: Path) -> None:
@@ -143,7 +115,7 @@ def test_clone_requires_consent_and_supported_audio(tmp_path: Path) -> None:
 
     invalid = tmp_path / "audio.txt"
     invalid.write_text("not audio")
-    with pytest.raises(InvalidVoiceAudioError, match="AAC"):
+    with pytest.raises(InvalidVoiceAudioError, match="FLAC"):
         service.create_clone(
             OWNER,
             record.capsule_id,
@@ -172,7 +144,7 @@ def test_create_synthesize_retain_and_delete_real_provider_contract(
 
     assert created.audio_path.read_bytes() == b"synthetic-mp3"
     assert speech.read_bytes() == b"synthetic-mp3"
-    assert created.record.voice_provider == "elevenlabs"
+    assert created.record.voice_provider == "openbmb-voxcpm2-modal"
     assert created.record.voice_id == "voice-private-123"
     assert created.record.voice_retention == "retained"
     assert created.record.voice_consent_at
@@ -198,7 +170,7 @@ def test_verification_required_is_not_saved_as_success(tmp_path: Path) -> None:
     provider = FakeVoiceProvider(verification_required=True)
     library, service, record, audio = _service(tmp_path, provider)
 
-    with pytest.raises(VoiceVerificationRequiredError, match="verification"):
+    with pytest.raises(VoiceError, match="verification"):
         service.create_clone(
             OWNER,
             record.capsule_id,
@@ -230,7 +202,7 @@ def test_delete_failure_records_retryable_cleanup(tmp_path: Path) -> None:
 
     pending = library.get_capsule(OWNER, created.record.capsule_id)
     assert pending.voice_status == "cleanup_pending"
-    assert pending.pending_cleanup_refs == ("elevenlabs_voice:voice-private-123",)
+    assert pending.pending_cleanup_refs == ("voxcpm_reference:voice-private-123",)
 
 
 def test_expired_temporary_clone_is_cleaned_up(tmp_path: Path) -> None:

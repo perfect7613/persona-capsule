@@ -42,7 +42,7 @@ The capsule contains:
   without a permanently serialized user steering tensor;
 - optional MiniCPM LoRA metadata for a Deep Capsule;
 - FLUX-generated card art and optional visual LoRA metadata;
-- an ElevenLabs Instant Voice Clone reference or pre-generated voice sample;
+- a private OpenBMB VoxCPM2 reference or pre-generated voice sample;
 - provenance, consent, privacy, model-version, and compatibility metadata;
 - a PersonaSpec-compatible `.persona` profile export;
 - a safe capsule manifest and separately stored model artifacts.
@@ -65,7 +65,7 @@ Quick Capsule is the primary live demo path.
 - During live MiniCPM inference, extract a user-specific activation direction
   from those examples and immediately apply it to generation.
 - Generate card art using a pre-trained global Persona Capsule FLUX LoRA.
-- Optionally create an ElevenLabs Instant Voice Clone from consented audio.
+- Optionally create an OpenBMB VoxCPM2 voice reference from consented audio.
 - Assemble a capsule in a target of one to three minutes after models are warm.
 
 ### Deep Capsule
@@ -89,7 +89,7 @@ Deep Capsule runs asynchronously and enriches an existing Quick Capsule.
 4. Use NVIDIA Nemotron 3 Nano 4B as a meaningful battle and evaluation model.
 5. Use Modal for model training and Nemotron inference where appropriate.
 6. Produce consistent, personality-derived FLUX.2 Klein card art.
-7. Support optional ElevenLabs Instant Voice Cloning through its API.
+7. Support optional OpenBMB VoxCPM2 voice cloning through Modal.
 8. Require Hugging Face authentication for creation and account management.
 9. Keep capsules private until their creator explicitly publishes them.
 10. Provide dynamic X/Open Graph share pages for published capsules.
@@ -113,7 +113,7 @@ The submission is successful when:
 10. Unselected raw messages and original chat exports are deleted after
     processing by default.
 11. Capsule deletion removes private records, public pages, generated assets,
-    retained ElevenLabs clones, and user-specific training artifacts.
+    retained VoxCPM2 references, and user-specific training artifacts.
 12. The live app is deployed as a Gradio Space inside the official hackathon
     organization.
 13. A demo video can show creation, steering, fusion, voice, battle, and sharing
@@ -196,8 +196,8 @@ The submission is successful when:
     source audio.
 36. As a user, I want to explicitly confirm that the uploaded voice is mine or
     that I have permission to clone it, so that cloning is consent-based.
-37. As a user, I want the application to report whether ElevenLabs requires
-    verification, so that I understand why cloning may not complete.
+37. As a user, I want the application to report invalid or unusable reference
+    audio clearly, so that I understand why cloning may not complete.
 38. As a user, I want to generate a short signature voice line, so that the card
     has an immediately playable audio sample.
 39. As a user, I want the default voice clone to be temporary, so that it is not
@@ -221,7 +221,7 @@ The submission is successful when:
 48. As a user, I want fused text descriptors and card art, so that the result is
     a complete collectible rather than only hidden tensor math.
 49. As a user, I want to select which source voice speaks for a fusion, so that
-    the application does not pretend that ElevenLabs voices support vector
+    the application does not pretend that VoxCPM2 voices support vector
     interpolation.
 50. As a user, I want to save a fusion as a new capsule, so that combinations
     become reusable objects.
@@ -260,7 +260,7 @@ The submission is successful when:
 67. As a user, I want to delete a capsule, so that its data and artifacts are
     removed from the system.
 68. As a user, I want deletion status for external resources, so that failures
-    such as an ElevenLabs deletion error are visible and retried.
+    such as a VoxCPM2 reference-deletion error are visible and retried.
 69. As a user, I want to export a `.persona` file, so that the human-readable
     profile can be used outside this application.
 70. As a technical user, I want a manifest describing the exact model and vector
@@ -285,7 +285,7 @@ The submission is successful when:
 80. As an administrator, I want external API keys stored only in platform secret
     stores, so that credentials never enter source control or client responses.
 81. As an administrator, I want per-user and global quotas, so that one user
-    cannot exhaust ZeroGPU, Modal, FLUX, or ElevenLabs resources.
+    cannot exhaust Modal, MiniCPM, FLUX, Nemotron, or VoxCPM2 resources.
 82. As an administrator, I want cost estimates before Deep Capsule training, so
     that expensive jobs are deliberate.
 83. As an administrator, I want to disable optional services independently, so
@@ -295,7 +295,7 @@ The submission is successful when:
 85. As a judge, I want a pre-built demo path, so that I can evaluate the product
     even if I do not upload personal data.
 86. As a judge, I want the README to identify where MiniCPM, Nemotron, Modal,
-    FLUX, ElevenLabs, and Codex are used, so that sponsor contributions are clear.
+    FLUX, VoxCPM2, and Codex are used, so that sponsor contributions are clear.
 87. As a judge, I want a demo video covering the complete path, so that temporary
     GPU or API exhaustion does not prevent evaluation.
 88. As a judge, I want limitations and measured results documented, so that the
@@ -449,22 +449,21 @@ The submission is successful when:
 
 ### Voice Cloning
 
-- Voice cloning will use ElevenLabs Instant Voice Cloning.
-- The backend will create a clone through `POST /v1/voices/add` or the equivalent
-  official SDK method and store the returned `voice_id`.
-- Text-to-speech will use the ordinary ElevenLabs conversion API with that
-  `voice_id`.
+- Voice cloning will use the 2B OpenBMB VoxCPM2 model on Modal.
+- The backend will normalize a consented reference clip to private 16 kHz mono
+  audio and store only an unguessable reference ID in the capsule.
+- Text-to-speech will send that reference ID and approved text to the VoxCPM2
+  Modal runtime and return clearly labelled synthetic audio.
 - Voice cloning requires an explicit ownership and consent confirmation.
 - Audio quality guidance will be shown before upload.
-- Verification-required responses will be surfaced honestly and will not be
-  treated as successful clones.
 - The default path will generate a signature sample and delete the temporary
-  clone after the session or configured retention window.
-- A user may explicitly opt into retaining a clone for live capsule speech.
-- Retained clones will be referenced by provider ID, never exported as model
-  weights.
-- Capsule deletion will issue an ElevenLabs voice deletion request and track
-  retries if the provider is unavailable.
+  reference after the session or configured retention window.
+- A user may explicitly opt into retaining a private reference for live capsule
+  speech.
+- Retained references will be identified by opaque IDs, never exported as model
+  weights or raw audio.
+- Capsule deletion will remove the VoxCPM2 reference from the private Modal
+  Volume and track retries if the runtime is unavailable.
 - Fusion will not claim to interpolate cloned voice embeddings. Users will
   select a source voice or use alternating source voices.
 
@@ -633,7 +632,7 @@ The submission is successful when:
   to the local user.
 - The committed `.env.example` will contain variable names only.
 - Expected variables include `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, `HF_TOKEN`,
-  `ELEVENLABS_API_KEY`, and any optional augmentation-provider key.
+  and any optional augmentation-provider key.
 - Deployment credentials will be copied into Hugging Face Space Secrets and
   named Modal Secrets rather than shipped in the application image.
 - Startup validation will report missing optional and required configuration
@@ -669,8 +668,8 @@ The submission is successful when:
    interactive and social card assets.
 
 8. **Voice Gateway**  
-   Creates ElevenLabs clones, synthesizes speech, applies retention choices, and
-   deletes provider resources.
+   Stores consented VoxCPM2 references, synthesizes speech, applies retention
+   choices, and deletes private runtime resources.
 
 9. **Battle Judge**  
    Builds blinded rubrics, invokes Nemotron on Modal, swaps candidate order, and
@@ -820,7 +819,7 @@ The submission is successful when:
 - FLUX global LoRA inference on the chosen checkpoint.
 - Modal Nemotron structured battle response.
 - Modal MiniCPM and FLUX training job smoke tests.
-- ElevenLabs test clone creation, speech generation, and clone deletion using
+- VoxCPM2 Modal reference creation, speech generation, and deletion using
   synthetic authorized audio.
 - Public share-page crawl and metadata validation.
 - End-to-end capsule deletion across storage and external providers.
@@ -854,7 +853,7 @@ The submission is successful when:
 - Claims of clinical, diagnostic, or scientifically validated personality
   assessment.
 - Universal steering vectors that work across arbitrary language models.
-- Mathematical interpolation of ElevenLabs voice clones.
+- Mathematical interpolation of VoxCPM2 voice references.
 - Automatic publishing of user data without explicit confirmation.
 - Unrestricted public-scale operation beyond hackathon quotas.
 - Full support for every chat-export format.
@@ -864,8 +863,8 @@ The submission is successful when:
 - Full moderation tooling for a large public social network.
 - Guaranteed per-user LoRA completion during the live Quick Capsule flow.
 - Guaranteed multilingual steering without measured language-specific evidence.
-- Tiny Titan and Off the Grid eligibility while MiniCPM4.1-8B, Modal, ZeroGPU,
-  and ElevenLabs remain core dependencies.
+- Tiny Titan and Off the Grid eligibility while MiniCPM4.1-8B and Modal remain
+  core dependencies.
 - A claim that the PersonaSpec draft is broadly supported by third-party
   platforms.
 - Automatic cloning of public figures or people other than the consenting user.
@@ -881,7 +880,7 @@ The implementation must be ordered by technical risk:
 3. Build the authenticated Quick Capsule workflow.
 4. Generate a polished card using the global FLUX LoRA.
 5. Add publishing and X-compatible share pages.
-6. Add ElevenLabs voice creation and deletion.
+6. Add VoxCPM2 voice creation and deletion.
 7. Add Nemotron battle through Modal.
 8. Add Deep Capsule training only after the complete Quick path works.
 
@@ -908,7 +907,7 @@ The implementation must be ordered by technical risk:
 
 #### June 14, 2026
 
-- Add ElevenLabs voice lifecycle.
+- Add VoxCPM2 voice lifecycle.
 - Add Nemotron battle on Modal.
 - Deploy and stabilize the hackathon Space.
 - Run full acceptance tests and record fallback demo assets.
@@ -945,7 +944,7 @@ The implementation must be ordered by technical risk:
 - Hugging Face service token with the minimum repository permissions needed by
   the selected storage and publishing design.
 - Modal authentication and named Modal secrets.
-- ElevenLabs API key with Instant Voice Cloning access.
+- Hugging Face access for the pinned OpenBMB VoxCPM2 model on Modal.
 - Optional augmentation-provider key if synthetic training-pair generation uses
   an external API.
 

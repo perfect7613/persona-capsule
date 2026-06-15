@@ -14,7 +14,7 @@ class Settings:
     app_env: str = "development"
     hugging_face_available: bool = False
     modal_available: bool = False
-    elevenlabs_available: bool = False
+    voxcpm_available: bool = False
     space_environment: bool = False
     local_oauth_available: bool = False
     local_identity_enabled: bool = False
@@ -57,7 +57,9 @@ class Settings:
             modal_available=all(
                 environ.get(name, "").strip() for name in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET")
             ),
-            elevenlabs_available=bool(environ.get("ELEVENLABS_API_KEY", "").strip()),
+            voxcpm_available=all(
+                environ.get(name, "").strip() for name in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET")
+            ),
             space_environment=bool(environ.get("SPACE_ID", "").strip()),
             local_oauth_available=bool(environ.get("HF_TOKEN", "").strip()),
             local_identity_enabled=environ.get("PERSONA_LOCAL_IDENTITY", "").lower()
@@ -99,7 +101,7 @@ class Settings:
         return {
             "hugging_face": self.hugging_face_available,
             "modal": self.modal_available,
-            "elevenlabs": self.elevenlabs_available,
+            "voxcpm2": self.voxcpm_available,
         }
 
     @property

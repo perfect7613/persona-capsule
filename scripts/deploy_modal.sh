@@ -27,4 +27,5 @@ uv run modal secret create persona-capsule-huggingface \
 uv run modal deploy modal_minicpm.py
 uv run modal deploy modal_flux.py
 uv run modal deploy modal_nemotron.py
+uv run modal deploy modal_voxcpm.py
 uv run modal deploy modal_deep.py

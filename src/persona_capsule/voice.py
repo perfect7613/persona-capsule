@@ -1,22 +1,20 @@
-"""Consent-gated ElevenLabs voice cloning and speech lifecycle."""
+"""Consent-gated OpenBMB VoxCPM2 voice cloning and speech lifecycle."""
 
-import os
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from typing import Protocol
 
-from elevenlabs.client import ElevenLabs
-from elevenlabs.core.api_error import ApiError
-
 from persona_capsule.identity import Principal
 from persona_capsule.library import CapsuleLibrary
 from persona_capsule.repository import CapsuleRecord
 
-VOICE_MODEL_ID = "eleven_multilingual_v2"
-VOICE_OUTPUT_FORMAT = "mp3_44100_128"
-SUPPORTED_AUDIO_SUFFIXES = {".aac", ".flac", ".m4a", ".mp3", ".mp4", ".ogg", ".wav", ".webm"}
+VOICE_PROVIDER_ID = "openbmb-voxcpm2-modal"
+VOICE_MODEL_ID = "openbmb/VoxCPM2"
+VOICE_MODAL_APP_NAME = "persona-capsule-voxcpm"
+VOICE_MODAL_CLASS_NAME = "VoxCPMVoiceRuntime"
+SUPPORTED_AUDIO_SUFFIXES = {".flac", ".mp3", ".ogg", ".wav"}
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
 
 
@@ -29,19 +27,11 @@ class VoiceError(RuntimeError):
 
 
 class VoiceProviderUnavailableError(VoiceError):
-    """Raised when ElevenLabs is not configured or cannot be reached."""
-
-
-class VoiceVerificationRequiredError(VoiceError):
-    """Raised when ElevenLabs requires ownership verification."""
+    """Raised when the VoxCPM2 Modal runtime cannot be reached."""
 
 
 class VoiceQuotaError(VoiceError):
     """Raised when the provider account has insufficient quota."""
-
-
-class VoicePlanAccessError(VoiceError):
-    """Raised when the ElevenLabs subscription does not permit cloned-voice use."""
 
 
 class InvalidVoiceAudioError(VoiceError):
@@ -67,62 +57,29 @@ class VoiceProvider(Protocol):
     def delete_voice(self, voice_id: str) -> None: ...
 
 
-def _error_text(error: ApiError) -> str:
-    body = error.body
-    if isinstance(body, dict):
-        detail = body.get("detail", body)
-        if isinstance(detail, dict):
-            return " ".join(
-                str(detail.get(key, "")) for key in ("type", "code", "status", "message")
-            ).casefold()
-    return str(body).casefold()
-
-
-def _raise_provider_error(error: ApiError) -> None:
-    text = _error_text(error)
-    if any(
-        marker in text
-        for marker in (
-            "ivc_not_permitted",
-            "instant voice cloning is not available",
-            "instantly cloned voices are not available",
-        )
-    ):
-        raise VoicePlanAccessError(
-            "Your current ElevenLabs plan does not permit Instant Voice Clone generation. "
-            "Upgrade the ElevenLabs subscription, then retry with the same API key."
-        ) from error
-    if error.status_code in {401, 403}:
-        raise VoiceProviderUnavailableError(
-            "ElevenLabs rejected the configured credentials or account access."
-        ) from error
-    if error.status_code == 429 or any(
-        marker in text for marker in ("quota", "credit", "rate_limit", "too many requests")
-    ):
-        raise VoiceQuotaError(
-            "ElevenLabs quota or rate limit was reached. Try again after quota is available."
-        ) from error
-    if error.status_code == 422 or any(
-        marker in text for marker in ("invalid_audio", "invalid file", "audio")
-    ):
+def _raise_modal_error(error: Exception) -> None:
+    text = str(error).casefold()
+    if any(marker in text for marker in ("audio", "decode", "format")):
         raise InvalidVoiceAudioError(
-            "ElevenLabs could not use this recording. Upload a clear supported audio file."
+            "VoxCPM2 could not use this recording. Upload a clear supported audio file."
+        ) from error
+    if any(marker in text for marker in ("quota", "rate limit", "resource exhausted")):
+        raise VoiceQuotaError(
+            "The VoxCPM2 runtime quota was reached. Try again when Modal capacity is available."
         ) from error
     raise VoiceProviderUnavailableError(
-        "ElevenLabs is temporarily unavailable. The capsule itself is still safe."
+        "The VoxCPM2 voice runtime is temporarily unavailable. The capsule itself is still safe."
     ) from error
 
 
-class ElevenLabsVoiceProvider:
-    """Production provider backed by the official ElevenLabs Python SDK."""
+class ModalVoxCPMVoiceProvider:
+    """Production provider backed by OpenBMB VoxCPM2 on Modal."""
 
-    def __init__(self, api_key: str | None = None) -> None:
-        resolved_key = (api_key or os.environ.get("ELEVENLABS_API_KEY", "")).strip()
-        if not resolved_key:
-            raise VoiceProviderUnavailableError(
-                "Configure ELEVENLABS_API_KEY to use voice cloning."
-            )
-        self._client = ElevenLabs(api_key=resolved_key)
+    @staticmethod
+    def _runtime():
+        import modal
+
+        return modal.Cls.from_name(VOICE_MODAL_APP_NAME, VOICE_MODAL_CLASS_NAME)()
 
     def create_clone(
         self,
@@ -130,41 +87,36 @@ class ElevenLabsVoiceProvider:
         name: str,
         audio_paths: tuple[Path, ...],
     ) -> VoiceClone:
+        if len(audio_paths) != 1:
+            raise InvalidVoiceAudioError("Upload one clear reference recording for VoxCPM2.")
         try:
-            response = self._client.voices.ivc.create(
-                name=name,
-                description="Private Persona Capsule voice clone",
-                files=[str(path) for path in audio_paths],
-                remove_background_noise=False,
+            path = audio_paths[0]
+            response = self._runtime().create_reference.remote(
+                audio_bytes=path.read_bytes(),
+                audio_suffix=path.suffix.casefold(),
             )
-        except ApiError as error:
-            _raise_provider_error(error)
+        except Exception as error:
+            _raise_modal_error(error)
         return VoiceClone(
-            voice_id=response.voice_id,
-            requires_verification=response.requires_verification,
+            voice_id=str(response["voice_id"]),
+            requires_verification=False,
         )
 
     def synthesize(self, *, voice_id: str, text: str) -> bytes:
         try:
-            chunks = self._client.text_to_speech.convert(
+            response = self._runtime().synthesize.remote(
                 voice_id=voice_id,
                 text=text,
-                model_id=VOICE_MODEL_ID,
-                output_format=VOICE_OUTPUT_FORMAT,
             )
-            return b"".join(chunks)
-        except ApiError as error:
-            _raise_provider_error(error)
+        except Exception as error:
+            _raise_modal_error(error)
+        return bytes(response["audio_bytes"])
 
     def delete_voice(self, voice_id: str) -> None:
         try:
-            response = self._client.voices.delete(voice_id)
-        except ApiError as error:
-            if error.status_code == 404:
-                return
-            _raise_provider_error(error)
-        if response.status != "ok":
-            raise VoiceProviderUnavailableError("ElevenLabs did not confirm voice deletion.")
+            self._runtime().delete_reference.remote(voice_id=voice_id)
+        except Exception as error:
+            _raise_modal_error(error)
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,7 +142,7 @@ class CapsuleVoiceService:
     def _provider_or_raise(self) -> VoiceProvider:
         if self._provider is None:
             raise VoiceProviderUnavailableError(
-                "ElevenLabs voice cloning is unavailable until its API key is configured."
+                "VoxCPM2 voice cloning is unavailable until the Modal runtime is configured."
             )
         return self._provider
 
@@ -204,7 +156,7 @@ class CapsuleVoiceService:
                 raise InvalidVoiceAudioError("An uploaded voice recording is no longer available.")
             if path.suffix.casefold() not in SUPPORTED_AUDIO_SUFFIXES:
                 raise InvalidVoiceAudioError(
-                    "Use AAC, FLAC, M4A, MP3, MP4, OGG, WAV, or WEBM audio."
+                    "Use FLAC, MP3, OGG, or WAV audio."
                 )
             if path.stat().st_size <= 0 or path.stat().st_size > MAX_AUDIO_BYTES:
                 raise InvalidVoiceAudioError("Each recording must be between 1 byte and 25 MB.")
@@ -247,14 +199,12 @@ class CapsuleVoiceService:
                 provider.delete_voice(clone.voice_id)
             except VoiceError:
                 pass
-            raise VoiceVerificationRequiredError(
-                "ElevenLabs requires voice verification before this clone can be used."
-            )
+            raise VoiceError("The voice provider requires additional ownership verification.")
 
         try:
             audio = provider.synthesize(voice_id=clone.voice_id, text=text)
             if not audio:
-                raise VoiceProviderUnavailableError("ElevenLabs returned an empty audio response.")
+                raise VoiceProviderUnavailableError("VoxCPM2 returned an empty audio response.")
         except Exception:
             try:
                 provider.delete_voice(clone.voice_id)
@@ -265,7 +215,7 @@ class CapsuleVoiceService:
         owner_namespace = sha256(principal.user_id.encode()).hexdigest()[:24]
         output_dir = self._artifact_root / "artifacts" / owner_namespace / record.capsule_id
         output_dir.mkdir(parents=True, exist_ok=True)
-        audio_path = output_dir / "voice-signature.mp3"
+        audio_path = output_dir / "voice-signature.wav"
         audio_path.write_bytes(audio)
         audio_path.chmod(0o600)
         now = _now()
@@ -274,7 +224,7 @@ class CapsuleVoiceService:
             if retention == "temporary"
             else ""
         )
-        reference = "voice/voice-signature.mp3"
+        reference = "voice/voice-signature.wav"
         updated = self._capsule_library.save_capsule(
             principal,
             replace(
@@ -283,7 +233,7 @@ class CapsuleVoiceService:
                     item for item in record.artifact_refs if not item.startswith("voice/")
                 )
                 + (reference,),
-                voice_provider="elevenlabs",
+                voice_provider=VOICE_PROVIDER_ID,
                 voice_id=clone.voice_id,
                 voice_status="ready",
                 voice_retention=retention,
@@ -294,7 +244,7 @@ class CapsuleVoiceService:
                 pending_cleanup_refs=tuple(
                     item
                     for item in record.pending_cleanup_refs
-                    if not item.startswith("elevenlabs_voice:")
+                    if not item.startswith("voxcpm_reference:")
                 ),
             ),
         )
@@ -321,7 +271,7 @@ class CapsuleVoiceService:
         owner_namespace = sha256(principal.user_id.encode()).hexdigest()[:24]
         output_dir = self._artifact_root / "artifacts" / owner_namespace / record.capsule_id
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / "voice-latest.mp3"
+        output_path = output_dir / "voice-latest.wav"
         output_path.write_bytes(audio)
         output_path.chmod(0o600)
         return output_path
@@ -336,7 +286,7 @@ class CapsuleVoiceService:
         record = self._capsule_library.get_capsule(principal, capsule_id)
         if not record.voice_id:
             return record
-        cleanup_ref = f"elevenlabs_voice:{record.voice_id}"
+        cleanup_ref = f"voxcpm_reference:{record.voice_id}"
         try:
             self._provider_or_raise().delete_voice(record.voice_id)
         except VoiceError:
@@ -351,7 +301,7 @@ class CapsuleVoiceService:
             )
             raise
 
-        for reference in (record.voice_sample_ref, "voice/voice-latest.mp3"):
+        for reference in (record.voice_sample_ref, "voice/voice-latest.wav"):
             if not reference:
                 continue
             owner_namespace = sha256(principal.user_id.encode()).hexdigest()[:24]
@@ -373,7 +323,7 @@ class CapsuleVoiceService:
                 pending_cleanup_refs=tuple(
                     item
                     for item in record.pending_cleanup_refs
-                    if not item.startswith("elevenlabs_voice:")
+                    if not item.startswith("voxcpm_reference:")
                 ),
                 voice_provider="",
                 voice_id="",

@@ -18,7 +18,7 @@ def test_health_is_ready_and_secret_safe() -> None:
             app_env="test",
             hugging_face_available=True,
             modal_available=False,
-            elevenlabs_available=True,
+            voxcpm_available=True,
         ),
         steering_gateway=UnusedSteeringGateway(),
     )
@@ -34,7 +34,7 @@ def test_health_is_ready_and_secret_safe() -> None:
         "providers": {
             "hugging_face": True,
             "modal": False,
-            "elevenlabs": True,
+            "voxcpm2": True,
         },
         "features": {
             "creation": True,

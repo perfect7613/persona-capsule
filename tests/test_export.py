@@ -24,7 +24,7 @@ def _record() -> CapsuleRecord:
         exemplar_pairs=(ExemplarPair("Good. Test it now.", "Test it now.", 0),),
         source_fingerprint="source-v1",
         artifact_refs=("/Users/owner/private/card.png",),
-        voice_provider="elevenlabs",
+        voice_provider="openbmb-voxcpm2-modal",
         voice_id="private-provider-voice-id",
         voice_status="ready",
         voice_retention="retained",
@@ -46,7 +46,7 @@ def test_default_export_excludes_private_data_and_activation_tensors() -> None:
     assert manifest["steering_recipe"]["model_revision"] == MODEL_REVISION
     assert manifest["security"]["serialized_activation_tensor"] is False
     assert manifest["visual_recipe"]["model_id"] == ""
-    assert manifest["voice_recipe"]["provider"] == "elevenlabs"
+    assert manifest["voice_recipe"]["provider"] == "openbmb-voxcpm2-modal"
     assert manifest["voice_recipe"]["provider_voice_id_included"] is False
     assert "private-provider-voice-id" not in serialized.decode()
     assert manifest["persona_sha256"]

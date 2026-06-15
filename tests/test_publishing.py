@@ -64,11 +64,11 @@ def _record() -> CapsuleRecord:
         source_fingerprint="source-v1",
         social_image_ref="card/card-social.png",
         card_image_ref="card/card-interactive.png",
-        voice_provider="elevenlabs",
+        voice_provider="openbmb-voxcpm2-modal",
         voice_id="private-provider-id",
         voice_status="ready",
         voice_retention="retained",
-        voice_sample_ref="voice/voice-signature.mp3",
+        voice_sample_ref="voice/voice-signature.wav",
         voice_model_id="eleven_multilingual_v2",
     )
 
@@ -81,7 +81,7 @@ def _service(tmp_path: Path):
     image_path = tmp_path / "artifacts" / owner_namespace / saved.capsule_id / "card-social.png"
     image_path.parent.mkdir(parents=True)
     Image.new("RGB", (1200, 628), "black").save(image_path)
-    (image_path.parent / "voice-signature.mp3").write_bytes(b"synthetic-audio")
+    (image_path.parent / "voice-signature.wav").write_bytes(b"synthetic-audio")
     service = PublishingService(
         library,
         repository,
@@ -156,7 +156,7 @@ def test_public_routes_render_crawler_metadata_and_unpublish(
     assert image.status_code == 200
     assert audio.status_code == 200
     assert image.headers["content-type"] == "image/png"
-    assert audio.headers["content-type"] == "audio/mpeg"
+    assert audio.headers["content-type"] == "audio/wav"
     assert 'property="og:title"' in page.text
     assert 'property="og:image"' in page.text
     assert 'name="twitter:card" content="summary_large_image"' in page.text

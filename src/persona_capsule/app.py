@@ -35,7 +35,7 @@ from persona_capsule.steering_service import CapsuleSteeringService, SteeringGat
 from persona_capsule.ui import CSS, build_demo, build_theme
 from persona_capsule.voice import (
     CapsuleVoiceService,
-    ElevenLabsVoiceProvider,
+    ModalVoxCPMVoiceProvider,
     VoiceProvider,
 )
 
@@ -96,11 +96,8 @@ def create_app(
         settings.capsule_data_dir,
         settings.public_base_url,
     )
-    if voice_provider is None and settings.elevenlabs_available:
-        try:
-            voice_provider = ElevenLabsVoiceProvider()
-        except RuntimeError:
-            voice_provider = None
+    if voice_provider is None and settings.voxcpm_available:
+        voice_provider = ModalVoxCPMVoiceProvider()
     voice_service = CapsuleVoiceService(
         capsule_library,
         settings.capsule_data_dir,
@@ -124,7 +121,7 @@ def create_app(
     effective_features = {
         **settings.feature_flags,
         "steering": settings.enable_steering and settings.modal_available,
-        "voice": settings.enable_voice and settings.elevenlabs_available,
+        "voice": settings.enable_voice and settings.voxcpm_available,
         "fusion": settings.enable_fusion and settings.modal_available,
         "battle": settings.enable_battle and settings.modal_available,
         "deep_training": settings.enable_deep_training and settings.modal_available,
@@ -339,7 +336,8 @@ def create_app(
             path = publishing_service.public_audio_path(record)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Capsule audio unavailable") from exc
-        return FileResponse(path, media_type="audio/mpeg")
+        media_type = "audio/wav" if path.suffix.casefold() == ".wav" else "audio/mpeg"
+        return FileResponse(path, media_type=media_type)
 
     return gr.mount_gradio_app(
         app=app,

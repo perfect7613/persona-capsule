@@ -14,7 +14,7 @@ hide them.
 - [ ] Publishing preview matches the public page and unpublish works.
 - [ ] Fusion enforces compatibility and stores provenance.
 - [ ] Nemotron battle shows blinded, order-swapped structured scoring.
-- [ ] ElevenLabs cloning and deletion work when the optional provider is enabled.
+- [ ] VoxCPM2 cloning, speech, expiry, and deletion work through Modal.
 - [ ] Provider kill switches and quota messages preserve the saved capsule.
 
 ## Mobile

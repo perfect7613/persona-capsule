@@ -27,6 +27,7 @@ REQUIRED_FILES = {
     "modal_flux.py",
     "modal_minicpm.py",
     "modal_nemotron.py",
+    "modal_voxcpm.py",
 }
 
 

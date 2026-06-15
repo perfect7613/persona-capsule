@@ -72,7 +72,7 @@ class PublishingService:
             if not record.voice_sample_ref or record.voice_status != "ready":
                 raise ValueError("Create an available voice sample before publishing it.")
             projection["voice_sample"] = True
-            projection["voice_label"] = "Synthetic voice generated with ElevenLabs"
+            projection["voice_label"] = "Synthetic voice generated with OpenBMB VoxCPM2"
         return projection
 
     def publish(

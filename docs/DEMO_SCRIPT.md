@@ -10,8 +10,8 @@ Target length: 2 to 3 minutes.
 4. Enter one prompt and show baseline versus live-steered MiniCPM output. Point
    out the exact model revision, selected layers, strength, and hook cleanup.
 5. Generate the FLUX collectible card and show its X-compatible social image.
-6. Briefly show consented ElevenLabs Instant Voice Cloning, or explain that the
-   feature is disabled when no rotated key is installed.
+6. Show consented OpenBMB VoxCPM2 reference-audio cloning and synthetic speech
+   running on Modal.
 7. Fuse two compatible capsules, adjust the weight, choose a permitted voice
    strategy, and show the new provenance-backed capsule.
 8. Run a battle. Explain that MiniCPM answers the same challenge twice and

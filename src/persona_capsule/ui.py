@@ -658,7 +658,7 @@ def _status_badges(settings: Settings) -> str:
     labels = {
         "hugging_face": "Hugging Face",
         "modal": "Modal",
-        "elevenlabs": "ElevenLabs",
+        "voxcpm2": "VoxCPM2",
     }
     badges = []
     for provider, available in settings.providers.items():
@@ -1129,7 +1129,7 @@ def build_demo(
         return (
             str(result.audio_path),
             (
-                f"Created a real ElevenLabs Instant Voice Clone for "
+                f"Created a private OpenBMB VoxCPM2 voice reference for "
                 f"**{escape(result.record.name)}**. The clone is {lifecycle}. "
                 "Generated audio is synthetic."
             ),
@@ -1149,7 +1149,10 @@ def build_demo(
             output = voice_service.synthesize(principal, capsule_id, speech_text)
         except (KeyError, PermissionError, VoiceError) as exc:
             raise gr.Error(str(exc)) from exc
-        return str(output), "Generated with the private ElevenLabs clone. This audio is synthetic."
+        return (
+            str(output),
+            "Generated with private VoxCPM2 cloning on Modal. This audio is synthetic.",
+        )
 
     def delete_voice_core(
         capsule_id: str,
@@ -1165,7 +1168,7 @@ def build_demo(
             raise gr.Error(
                 f"{exc} Cleanup is recorded and can be retried without losing the capsule."
             ) from exc
-        return None, "ElevenLabs voice deleted. The text capsule remains available.", record
+        return None, "VoxCPM2 voice reference deleted. The text capsule remains available.", record
 
     def publish_selection(
         include_summary: bool,
@@ -1338,7 +1341,7 @@ def build_demo(
             return (
                 (
                     f"Capsule deletion is paused: {escape(str(exc))} "
-                    "The ElevenLabs cleanup is recorded; retry deletion later."
+                    "The VoxCPM2 cleanup is recorded; retry deletion later."
                 ),
                 _library_html(principal, capsule_library),
                 gr.Dropdown(
@@ -1927,15 +1930,18 @@ def build_demo(
                             )
 
                     with gr.Accordion(
-                        "Add an authorized ElevenLabs voice",
+                        "Add an authorized VoxCPM2 voice",
                         open=False,
+                        visible=settings.enable_voice
+                        and settings.voxcpm_available,
                         elem_classes=["pc-advanced"],
                     ):
                         gr.Markdown(
                             "Use only your own voice or a recording you have explicit "
                             "permission to clone. Use 1–2 minutes of clean, consistent "
                             "speech with no music, reverb, or other speakers. Instant Voice "
-                            "Clone generation must be enabled on your ElevenLabs plan."
+                            "The private reference is processed by OpenBMB VoxCPM2 on Modal "
+                            "and can be deleted at any time."
                         )
                         voice_audio = gr.Audio(
                             sources=["upload", "microphone"],
@@ -1961,7 +1967,7 @@ def build_demo(
                             lines=2,
                         )
                         create_voice = gr.Button(
-                            "Create ElevenLabs voice",
+                            "Create VoxCPM2 voice",
                             elem_classes=["pc-button"],
                         )
                         voice_status = gr.Markdown()
@@ -1976,7 +1982,7 @@ def build_demo(
                         )
                         with gr.Row():
                             synthesize_voice = gr.Button("Generate synthetic speech")
-                            delete_voice = gr.Button("Delete ElevenLabs voice")
+                            delete_voice = gr.Button("Delete VoxCPM2 voice")
 
                     with gr.Accordion(
                         "Preview and publish a shareable capsule",

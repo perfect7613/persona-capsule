@@ -44,7 +44,6 @@ def deployment_plan() -> dict[str, object]:
         "hardware": "cpu-basic",
         "oauth": True,
         "secret_names": [
-            "ELEVENLABS_API_KEY",
             "HF_TOKEN",
             "MODAL_TOKEN_ID",
             "MODAL_TOKEN_SECRET",
@@ -105,7 +104,8 @@ def deploy(*, dry_run: bool) -> None:
         "ENABLE_BATTLE": os.environ.get("ENABLE_BATTLE", "true"),
         "ENABLE_CARD": os.environ.get("ENABLE_CARD", "true"),
         "ENABLE_CREATION": os.environ.get("ENABLE_CREATION", "true"),
-        "ENABLE_DEEP_TRAINING": os.environ.get("ENABLE_DEEP_TRAINING", "true"),
+        # Keep the judged Space focused on the live, working inference path.
+        "ENABLE_DEEP_TRAINING": "false",
         "ENABLE_FUSION": os.environ.get("ENABLE_FUSION", "true"),
         "ENABLE_STEERING": os.environ.get("ENABLE_STEERING", "true"),
         "ENABLE_VOICE": os.environ.get("ENABLE_VOICE", "true"),
@@ -113,7 +113,6 @@ def deploy(*, dry_run: bool) -> None:
         "PUBLIC_BASE_URL": f"https://huggingface.co/spaces/{SPACE_ID}",
     }
     secrets = {
-        "ELEVENLABS_API_KEY": _required("ELEVENLABS_API_KEY"),
         "HF_TOKEN": service_token,
         "MODAL_TOKEN_ID": _required("MODAL_TOKEN_ID"),
         "MODAL_TOKEN_SECRET": _required("MODAL_TOKEN_SECRET"),
@@ -122,7 +121,8 @@ def deploy(*, dry_run: bool) -> None:
         api.add_space_variable(SPACE_ID, key, value)
     for key, value in secrets.items():
         api.add_space_secret(SPACE_ID, key, value)
-
+    if "ELEVENLABS_API_KEY" in api.get_space_secrets(SPACE_ID):
+        api.delete_space_secret(SPACE_ID, "ELEVENLABS_API_KEY")
     commit = api.upload_folder(
         repo_id=SPACE_ID,
         repo_type="space",

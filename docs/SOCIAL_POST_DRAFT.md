@@ -4,7 +4,7 @@ Built Persona Capsule for the Hugging Face Build Small Hackathon.
 
 It turns writing examples you approve into a private communication-style
 capsule: request-scoped MiniCPM activation steering, a FLUX collectible card,
-optional consented ElevenLabs voice, compatible capsule fusion, blinded
+optional consented OpenBMB VoxCPM2 voice, compatible capsule fusion, blinded
 Nemotron battles, and a shareable challenge where friends identify the
 live-steered answer.
 

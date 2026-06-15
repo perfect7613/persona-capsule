@@ -9,7 +9,7 @@ track.
 Codex has been used to:
 
 - audit the original hackathon plan against current official documentation;
-- verify MiniCPM, Nemotron, FLUX, Modal, ElevenLabs, Gradio, and ZeroGPU
+- verify MiniCPM, VoxCPM2, Nemotron, FLUX, Modal, Gradio, and Space deployment
   assumptions;
 - identify unsupported steering-vector and portability claims;
 - design the inference-time activation-steering architecture;
@@ -18,7 +18,7 @@ Codex has been used to:
 - establish the GitHub repository and canonical PRD issue;
 - implement request-scoped MiniCPM activation extraction and hook cleanup;
 - implement owner-scoped capsule storage, export, publishing, and deletion;
-- integrate real FLUX and ElevenLabs provider lifecycles with safe fallbacks;
+- integrate real FLUX and VoxCPM2 provider lifecycles with safe fallbacks;
 - implement weighted capsule fusion with exact recipe compatibility;
 - implement blinded A/B and B/A Nemotron battles on Modal;
 - implement resumable, evaluated MiniCPM QLoRA Deep Capsule jobs;

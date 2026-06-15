@@ -12,6 +12,7 @@ hf_oauth: true
 suggested_hardware: cpu-basic
 models:
   - openbmb/MiniCPM4.1-8B
+  - openbmb/VoxCPM2
   - black-forest-labs/FLUX.2-klein-4B
   - Sawata97/flux2_4b_koni_animestyle
   - nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16
@@ -77,7 +78,7 @@ person.
 | Private exemplar pairs | Selected writing examples and neutral contrasts |
 | Steering recipe | Exact MiniCPM model, revision, layers, and calculation settings |
 | Card assets | Interactive and 1200×628 social images |
-| Optional voice reference | Private ElevenLabs voice ID and synthetic samples |
+| Optional voice reference | Private VoxCPM2 reference ID and synthetic samples |
 | Public projection | Only the fields explicitly selected for sharing |
 | Export manifest | Compatibility information and integrity hashes |
 
@@ -108,7 +109,7 @@ flowchart TD
     E --> F["Save a private Quick Capsule"]
     F --> G["Compare baseline and live-steered MiniCPM answers"]
     F --> H["Generate a FLUX collectible card"]
-    F --> I["Optionally create a consented ElevenLabs voice"]
+    F --> I["Optionally create a consented VoxCPM2 voice"]
     F --> J["Export the capsule and compatibility manifest"]
     F --> O["Fuse two compatible capsules"]
     F --> P["Run a blinded Nemotron battle"]
@@ -134,8 +135,8 @@ generator. Persona Capsule follows these rules:
    examples is kept.
 4. **Store recipes, not activation tensors.** User steering tensors are
    temporary runtime data.
-5. **Delete source audio.** Uploaded voice recordings are removed locally after
-   the ElevenLabs cloning request.
+5. **Minimize source audio.** Transient uploads are deleted after a normalized,
+   private VoxCPM2 reference is stored for the chosen retention window.
 6. **Separate private and public records.** Share pages are rendered from a
    selected public projection, not the canonical private capsule.
 7. **Make external cleanup retryable.** If provider deletion is unavailable,
@@ -173,10 +174,7 @@ flowchart LR
         MiniCPM["MiniCPM4.1-8B\nlive vector derivation + generation"]
         Flux["FLUX.2 Klein 4B + anime LoRA\ncard artwork"]
         Nemotron["Nemotron 3 Nano 4B\nblinded battle judge"]
-    end
-
-    subgraph Providers["External Provider"]
-        ElevenLabs["ElevenLabs\nIVC + text-to-speech"]
+        VoxCPM["OpenBMB VoxCPM2 2B\nvoice cloning + speech"]
     end
 
     UI --> Identity
@@ -195,7 +193,7 @@ flowchart LR
     Library --> Visual
     Visual --> Flux
     Library --> Voice
-    Voice --> ElevenLabs
+    Voice --> VoxCPM
     Library --> Publishing
     Publishing --> Share
     Share --> Steering
@@ -235,7 +233,7 @@ personalization process.
 | Private capsule lifecycle | Complete | Save, reopen, rename, export, and idempotent deletion |
 | FLUX card generation | Complete | Default anime LoRA on Modal, controlled seeds, deterministic fallback |
 | Public sharing | Complete | Live chat, personality challenge, stable slug, social metadata, unpublish |
-| ElevenLabs voice lifecycle | Implemented | Real IVC, speech, retention, deletion, cleanup retries |
+| OpenBMB VoxCPM2 voice lifecycle | Complete | Consented reference cloning, speech, retention, deletion, cleanup retries on Modal |
 | Capsule fusion | Complete | Compatible weighted live steering, cards, voice choice, provenance |
 | Nemotron battle | Complete | Blinded A/B and B/A judging on Modal |
 | Operational controls | Complete | Per-user quotas, kill switches, safe telemetry |
@@ -244,12 +242,13 @@ personalization process.
 ## Technology
 
 - **MiniCPM4.1-8B** is the primary language model and activation-steering target.
-- **Modal** hosts GPU-intensive MiniCPM and FLUX workloads.
+- **Modal** hosts GPU-intensive MiniCPM, FLUX, Nemotron, and VoxCPM2 workloads.
 - **FLUX.2 Klein 4B** with the pinned
   **Sawata97/flux2_4b_koni_animestyle** LoRA produces anime-style
   profile-derived card artwork by default.
 - **NVIDIA Nemotron 3 Nano 4B** judges anonymized capsule battles in both orders.
-- **ElevenLabs** provides consented Instant Voice Cloning and text-to-speech.
+- **OpenBMB VoxCPM2 2B** provides multilingual, consented reference-audio voice
+  cloning and synthetic speech without a closed cloning API.
 - **Hugging Face OAuth** binds private capsules to their creators.
 - **Hugging Face Dataset storage** provides the deployment persistence boundary.
 - **FastAPI** serves health, creator, image, audio, and public metadata routes.
@@ -275,7 +274,7 @@ src/persona_capsule/
   deep_training.py             Resumable Deep Capsule orchestration
   operations.py                Feature flags, quotas, safe telemetry
   card.py                      Prompt mapping and card composition
-  voice.py                     Real ElevenLabs voice lifecycle
+  voice.py                     Private VoxCPM2 voice lifecycle
   repository.py                Canonical schema and storage adapters
   publishing.py                Public projection and social metadata
   export.py                    .persona and compatibility exports
@@ -340,7 +339,6 @@ anonymous production login.
 | `SPACE_HF_SERVICE_TOKEN` | Rotated service token installed as a Space/Modal secret |
 | `MODAL_TOKEN_ID` | Modal authentication ID |
 | `MODAL_TOKEN_SECRET` | Modal authentication secret |
-| `ELEVENLABS_API_KEY` | Real Instant Voice Cloning and text-to-speech |
 | `VOICE_TEMPORARY_HOURS` | Lifetime of temporary voice clones; default `24` |
 | `PERSONA_CAPSULE_DATA_DIR` | Local records, artifacts, and export directory |
 | `PUBLIC_BASE_URL` | Canonical base URL used in public share metadata |
@@ -393,7 +391,7 @@ Persona Capsule is designed so optional providers fail independently:
 
 - MiniCPM failure does not delete or corrupt a capsule.
 - FLUX failure produces a deterministic local card.
-- ElevenLabs failure leaves text, steering, and card features available.
+- VoxCPM2 failure leaves text, steering, and card features available.
 - Failed voice deletion becomes a visible retryable cleanup state.
 - Publishing and unpublishing do not modify the private source profile.
 - Nemotron battle failures leave the original capsules unchanged.
@@ -412,7 +410,7 @@ The project demonstrates meaningful use of:
 - **OpenBMB / MiniCPM** for the central inference-time steering experience;
 - **Modal** for GPU model execution;
 - **Black Forest Labs FLUX** for collectible visual identity;
-- **ElevenLabs** for consented synthetic voice;
+- **OpenBMB VoxCPM2** for consented synthetic voice;
 - **NVIDIA Nemotron** in the live blinded, order-swapped battle evaluator;
 - **OpenAI Codex** as an attributed engineering collaborator.
 
