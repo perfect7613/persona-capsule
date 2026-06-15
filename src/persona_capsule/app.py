@@ -6,7 +6,7 @@ from time import monotonic
 from typing import Any
 
 import gradio as gr
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
@@ -148,6 +148,31 @@ def create_app(
     @app.get("/app", include_in_schema=False)
     async def app_without_trailing_slash() -> RedirectResponse:
         return RedirectResponse(url="/app/")
+
+    if settings.oauth_ui_available:
+
+        def oauth_mount_redirect(request: Request) -> RedirectResponse:
+            query = f"?{request.url.query}" if request.url.query else ""
+            return RedirectResponse(url=f"/app{request.url.path}{query}")
+
+        app.add_api_route(
+            "/login/huggingface",
+            oauth_mount_redirect,
+            methods=["GET"],
+            include_in_schema=False,
+        )
+        app.add_api_route(
+            "/login/callback",
+            oauth_mount_redirect,
+            methods=["GET"],
+            include_in_schema=False,
+        )
+        app.add_api_route(
+            "/logout",
+            oauth_mount_redirect,
+            methods=["GET"],
+            include_in_schema=False,
+        )
 
     @app.get("/healthz", tags=["operations"])
     async def health() -> dict[str, Any]:

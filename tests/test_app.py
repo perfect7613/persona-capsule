@@ -76,6 +76,36 @@ def test_landing_path_without_slash_uses_relative_redirect() -> None:
     assert response.headers["location"] == "/app/"
 
 
+def test_oauth_root_routes_bridge_to_mounted_gradio_app() -> None:
+    app = create_app(
+        Settings(space_environment=True),
+        steering_gateway=UnusedSteeringGateway(),
+    )
+
+    with TestClient(app) as client:
+        login = client.get(
+            "/login/huggingface?_target_url=%2Fapp%2F%3Fstep%3Dcreate",
+            follow_redirects=False,
+        )
+        callback = client.get(
+            "/login/callback?code=oauth-code&state=oauth-state",
+            follow_redirects=False,
+        )
+        logout = client.get(
+            "/logout?_target_url=%2Fapp%2F",
+            follow_redirects=False,
+        )
+
+    assert login.status_code in {302, 307}
+    assert login.headers["location"] == (
+        "/app/login/huggingface?_target_url=%2Fapp%2F%3Fstep%3Dcreate"
+    )
+    assert callback.status_code in {302, 307}
+    assert callback.headers["location"] == ("/app/login/callback?code=oauth-code&state=oauth-state")
+    assert logout.status_code in {302, 307}
+    assert logout.headers["location"] == "/app/logout?_target_url=%2Fapp%2F"
+
+
 def test_landing_path_is_bootable() -> None:
     with TestClient(create_app(Settings(), steering_gateway=UnusedSteeringGateway())) as client:
         response = client.get("/app/")
