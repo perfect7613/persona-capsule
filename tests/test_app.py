@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 
 from persona_capsule.app import create_app
@@ -72,6 +74,21 @@ def test_landing_path_is_bootable() -> None:
 
     assert response.status_code == 200
     assert "Persona Capsule" in response.text
+
+
+def test_landing_frontend_assets_are_served_from_mount_path() -> None:
+    with TestClient(create_app(Settings(), steering_gateway=UnusedSteeringGateway())) as client:
+        response = client.get("/app/")
+        asset_paths = re.findall(
+            r'(?:src|href)="\./(assets/[^"]+)"',
+            response.text,
+        )
+
+        assert asset_paths
+        for asset_path in asset_paths:
+            asset_response = client.get(f"/app/{asset_path}")
+            assert asset_response.status_code == 200
+            assert asset_response.content
 
 
 def test_creator_route_rejects_unauthenticated_requests() -> None:
