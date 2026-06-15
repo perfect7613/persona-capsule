@@ -68,6 +68,14 @@ def test_root_redirects_to_demo() -> None:
     assert response.headers["location"] == "/app/"
 
 
+def test_landing_path_without_slash_uses_relative_redirect() -> None:
+    with TestClient(create_app(Settings(), steering_gateway=UnusedSteeringGateway())) as client:
+        response = client.get("/app", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "/app/"
+
+
 def test_landing_path_is_bootable() -> None:
     with TestClient(create_app(Settings(), steering_gateway=UnusedSteeringGateway())) as client:
         response = client.get("/app/")

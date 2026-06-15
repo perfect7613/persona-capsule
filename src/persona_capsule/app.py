@@ -138,10 +138,15 @@ def create_app(
         title="Persona Capsule",
         description="Portable, composable communication personas.",
         version="0.1.0",
+        redirect_slashes=False,
     )
 
     @app.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:
+        return RedirectResponse(url="/app/")
+
+    @app.get("/app", include_in_schema=False)
+    async def app_without_trailing_slash() -> RedirectResponse:
         return RedirectResponse(url="/app/")
 
     @app.get("/healthz", tags=["operations"])
