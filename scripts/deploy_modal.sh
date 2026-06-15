@@ -18,11 +18,13 @@ fi
 
 : "${MODAL_TOKEN_ID:?Missing MODAL_TOKEN_ID}"
 : "${MODAL_TOKEN_SECRET:?Missing MODAL_TOKEN_SECRET}"
-: "${SPACE_HF_SERVICE_TOKEN:?Missing SPACE_HF_SERVICE_TOKEN}"
+: "${HF_TOKEN:?Missing HF_TOKEN}"
+SPACE_HF_SERVICE_TOKEN="${SPACE_HF_SERVICE_TOKEN:-$HF_TOKEN}"
 
 uv run modal secret create persona-capsule-huggingface \
   "HF_TOKEN=${SPACE_HF_SERVICE_TOKEN}" \
-  "HF_DEEP_REPO_PREFIX=${HF_DEEP_REPO_PREFIX:-persona-capsule}"
+  "HF_DEEP_REPO_PREFIX=${HF_DEEP_REPO_PREFIX:-persona-capsule}" \
+  --force
 
 uv run modal deploy modal_minicpm.py
 uv run modal deploy modal_flux.py

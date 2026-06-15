@@ -336,7 +336,7 @@ anonymous production login.
 | `APP_ENV` | `development`, `test`, or production environment label |
 | `HF_TOKEN` | Hugging Face API access and local OAuth availability |
 | `HF_CAPSULE_REPO_ID` | Private Dataset repository used for durable capsules |
-| `SPACE_HF_SERVICE_TOKEN` | Rotated service token installed as a Space/Modal secret |
+| `SPACE_HF_SERVICE_TOKEN` | Optional separate least-privilege service token; defaults to `HF_TOKEN` |
 | `MODAL_TOKEN_ID` | Modal authentication ID |
 | `MODAL_TOKEN_SECRET` | Modal authentication secret |
 | `VOICE_TEMPORARY_HOURS` | Lifetime of temporary voice clones; default `24` |

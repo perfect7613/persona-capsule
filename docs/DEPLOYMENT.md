@@ -6,9 +6,10 @@ Credentials previously pasted into chat or logs are compromised. Rotate the
 Hugging Face and Modal credentials before any public deployment.
 Do not reuse the original values.
 
-Create a separate Hugging Face service token with only the access required for
-the private capsule Dataset and private Deep Capsule model repositories. Put the
-rotated values in the ignored local `.env`, then set:
+Prefer a separate Hugging Face service token with only the access required for
+the private capsule Dataset and private Deep Capsule model repositories. When
+it is omitted, deployment uses the rotated `HF_TOKEN`. Put the rotated values
+in the ignored local `.env`, then set:
 
 ```dotenv
 CONFIRM_CREDENTIALS_ROTATED=true

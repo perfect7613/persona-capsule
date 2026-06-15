@@ -78,7 +78,7 @@ def deploy(*, dry_run: bool) -> None:
         )
 
     deploy_token = _required("HF_TOKEN")
-    service_token = _required("SPACE_HF_SERVICE_TOKEN")
+    service_token = os.environ.get("SPACE_HF_SERVICE_TOKEN", "").strip() or deploy_token
     api = HfApi(token=deploy_token)
     owner = str(api.whoami()["name"])
     data_repo = os.environ.get(
