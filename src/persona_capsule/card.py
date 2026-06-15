@@ -25,15 +25,71 @@ VARIATIONS = {
 ANIME_STYLE_TRIGGER = "anime_style"
 ANIME_TRAIT_CUES = {
     "analytical": "observant eyes and a thoughtful, composed expression",
+    "animated": "an expansive pose, bright expression, and visible momentum",
     "calm": "relaxed posture and a serene expression",
     "concise": "a clean silhouette and an economical, confident pose",
+    "conversational": "an informal stance and an inviting, mid-conversation expression",
     "curious": "an attentive gaze and a sense of discovery",
+    "decisive": "a strong frontal stance and unmistakable visual focus",
+    "deliberative": "a contemplative three-quarter pose with layered visual choices",
+    "detailed": "intricate accessories and a richly layered silhouette",
+    "diplomatic": "an open-handed pose and balanced, composed expression",
     "direct": "a focused gaze and decisive posture",
     "expressive": "animated eyes and an energetic, readable expression",
+    "fluid": "flowing fabric and an organic, asymmetrical silhouette",
+    "formal": "an upright composed pose with refined, restrained gestures",
+    "inquisitive": "an alert tilted pose and searching, observant eyes",
     "measured": "calm posture and a restrained, deliberate expression",
     "playful": "a lively pose and a subtle mischievous smile",
+    "poetic": "a theatrical silhouette and a distant, imaginative gaze",
+    "reflective": "a quiet three-quarter pose and inward-looking expression",
+    "reserved": "a closed, self-possessed pose and subtle expression",
+    "self-contained": "a composed solitary stance and precise personal space",
     "structured": "precise tailoring and orderly geometric accessories",
+    "understated": "minimal gestures and a quiet, confident expression",
     "warm": "gentle eyes and an approachable, open expression",
+}
+ANIME_WARDROBE_CUES = {
+    "analytical": "a technical jacket with diagram-like seams",
+    "animated": "bold layered streetwear with rhythmic accents",
+    "concise": "minimal monochrome clothing with one sharp accent",
+    "decisive": "an asymmetric command jacket, not a business suit",
+    "deliberative": "a layered coat with contrasting inner panels",
+    "detailed": "ornate modular clothing with fine crafted details",
+    "diplomatic": "balanced formal-casual clothing with open sleeves",
+    "direct": "a clean utility uniform with a strong diagonal closure",
+    "fluid": "flowing fabric with soft irregular layers",
+    "formal": "ceremonial modern tailoring with refined long lines",
+    "inquisitive": "an explorer's cropped jacket with small discovery tools",
+    "measured": "restrained tailored clothing with muted textural detail",
+    "playful": "inventive colorful streetwear with one surprising accessory",
+    "poetic": "a flowing theatrical coat with celestial embroidery",
+    "reflective": "a soft long coat with subtle translucent layers",
+    "reserved": "a high-collared minimalist outfit with protected lines",
+    "structured": "architectural tailoring with precise geometric panels",
+    "understated": "simple tactile clothing with almost no ornament",
+    "warm": "soft textured layers with welcoming colors",
+}
+ANIME_SCENE_CUES = {
+    "analytical": "inside a luminous abstract observatory of diagrams and measured orbits",
+    "animated": "against energetic ribbons of color and rhythmic light",
+    "concise": "inside a sparse graphic space with one decisive symbol",
+    "decisive": "at the center of converging beams and hard directional light",
+    "deliberative": "between two softly diverging paths made of translucent panels",
+    "detailed": "inside a dense cabinet of tiny symbolic artifacts",
+    "diplomatic": "between balanced warm and cool fields joined by a central bridge",
+    "direct": "against a bold horizon cut by one precision beam",
+    "fluid": "within layered currents of fabric-like light",
+    "formal": "inside a grand minimal hall with symmetrical pools of light",
+    "inquisitive": "before an unfolding map of unknown constellations",
+    "measured": "in a quiet studio of evenly spaced forms and controlled light",
+    "playful": "inside an offbeat world of spring-like shapes and clever visual surprises",
+    "poetic": "beneath a dreamlike sky of moons, ink clouds, and drifting pages",
+    "reflective": "beside a still reflective plane under soft dusk light",
+    "reserved": "in a protected dark alcove with narrow rim lighting",
+    "structured": "inside an architectural grid of modular luminous frames",
+    "understated": "against a nearly empty textured background with gentle side light",
+    "warm": "inside a softly glowing gathering space with open circular forms",
 }
 ANIME_SIGNATURE_HAIR = (
     "short textured hair with a clean side part",
@@ -64,6 +120,36 @@ PALETTES = (
     ((14, 23, 38), (80, 210, 196), (242, 165, 65), (235, 239, 245)),
     ((30, 15, 37), (231, 92, 155), (128, 225, 190), (248, 231, 201)),
     ((18, 28, 22), (190, 221, 112), (231, 117, 76), (239, 232, 210)),
+)
+PALETTE_PROMPTS = (
+    "charcoal black, electric chartreuse, burnt vermilion, and warm paper",
+    "midnight navy, luminous teal, amber, and cool porcelain",
+    "aubergine, vivid magenta, mint light, and pale sand",
+    "deep forest, botanical lime, terracotta, and aged cream",
+)
+VISUAL_TRAIT_PRIORITY = (
+    "poetic",
+    "playful",
+    "analytical",
+    "inquisitive",
+    "animated",
+    "warm",
+    "reserved",
+    "deliberative",
+    "decisive",
+    "structured",
+    "fluid",
+    "formal",
+    "understated",
+    "direct",
+    "reflective",
+    "diplomatic",
+    "self-contained",
+    "measured",
+    "conversational",
+    "concise",
+    "detailed",
+    "expressive",
 )
 SYMBOLS = {
     "analytical": "a calibrated orbital grid",
@@ -123,6 +209,36 @@ class ArtProvider(Protocol):
     def generate(self, prompt: CardPrompt) -> ArtResult: ...
 
 
+def derive_card_seed(record: CapsuleRecord) -> int:
+    """Create a hidden stable first seed and a different seed for regeneration."""
+    previous = str(record.card_seed) if record.card_seed is not None else "first"
+    digest = sha256(
+        f"{record.capsule_id}|{record.source_fingerprint}|{previous}|persona-card-v2".encode()
+    ).digest()
+    seed = int.from_bytes(digest[:4], "big") & 0x7FFFFFFF
+    if record.card_seed is not None and seed == record.card_seed:
+        seed = (seed + 1) & 0x7FFFFFFF
+    return seed
+
+
+def _visual_palette_index(record: CapsuleRecord) -> int:
+    if record.public_projection is None:
+        raise ValueError("Public projection required.")
+    descriptors = [descriptor.casefold() for descriptor in record.public_projection.descriptors]
+    digest = sha256(
+        "|".join(
+            (
+                ",".join(descriptors),
+                ",".join(
+                    f"{name}:{round(value / 10) * 10:.0f}"
+                    for name, value in sorted(record.public_projection.dimensions.items())
+                ),
+            )
+        ).encode()
+    ).digest()
+    return digest[0] % len(PALETTES)
+
+
 def build_card_prompt(
     record: CapsuleRecord,
     *,
@@ -134,9 +250,8 @@ def build_card_prompt(
     if variation not in VARIATIONS:
         raise ValueError(f"Unknown visual variation: {variation}")
     dimensions = record.style_profile.dimensions
-    palette_index = int(
-        (dimensions.openness + dimensions.expressiveness + dimensions.formality) // 75
-    ) % len(PALETTES)
+    descriptors = [descriptor.casefold() for descriptor in record.public_projection.descriptors]
+    palette_index = _visual_palette_index(record)
     palette = PALETTES[palette_index]
     mapped_symbols = [
         SYMBOLS[descriptor.casefold()]
@@ -145,9 +260,21 @@ def build_card_prompt(
     ][:3]
     if not mapped_symbols:
         mapped_symbols = ["an abstract signal glyph", "a measured concentric field"]
-    descriptors = [descriptor.casefold() for descriptor in record.public_projection.descriptors]
     trait_cues = [
         ANIME_TRAIT_CUES[descriptor] for descriptor in descriptors if descriptor in ANIME_TRAIT_CUES
+    ]
+    ranked_descriptors = [
+        descriptor for descriptor in VISUAL_TRAIT_PRIORITY if descriptor in descriptors
+    ]
+    wardrobe_cues = [
+        ANIME_WARDROBE_CUES[descriptor]
+        for descriptor in ranked_descriptors
+        if descriptor in ANIME_WARDROBE_CUES
+    ]
+    scene_cues = [
+        ANIME_SCENE_CUES[descriptor]
+        for descriptor in ranked_descriptors
+        if descriptor in ANIME_SCENE_CUES
     ]
     signature_source = "|".join(
         (
@@ -174,6 +301,10 @@ def build_card_prompt(
         if dimensions.formality >= 60
         else "tactile independent-publishing character"
     )
+    wardrobe_direction = (
+        ", ".join(wardrobe_cues[:2]) if wardrobe_cues else "an original personality-led outfit"
+    )
+    scene_direction = scene_cues[0] if scene_cues else "inside an abstract symbolic world"
     prompt = (
         f"{ANIME_STYLE_TRIGGER}, masterpiece, best quality, premium contemporary anime "
         "illustration. One original fictional adult anime character, solo, waist-up portrait, "
@@ -181,14 +312,18 @@ def build_card_prompt(
         "and no resemblance to a real person. "
         f"The character embodies these personality traits: {', '.join(descriptors)}. "
         f"Express those traits through {', '.join(trait_cues) or 'a distinctive presence'}. "
+        f"Wardrobe direction: {wardrobe_direction}. "
+        f"Place the character {scene_direction}. "
+        f"Use a dominant palette of {PALETTE_PROMPTS[palette_index]}. "
         f"Stable capsule signature: {signature_hair}, {signature_accessory}, and "
         f"{signature_aura}. "
         f"{VARIATIONS[variation]}. {energy}; {geometry}; {finish}. "
         f"Keep these motifs as subtle background or aura elements only: "
         f"{', '.join(mapped_symbols)}. "
         "Collectible social profile card, controlled cel shading, crisp linework, rich color, "
-        "dramatic negative space. No words, no letters, no captions, no logos, no watermark, "
-        "no photorealism."
+        "dramatic negative space. Make the personality-led wardrobe, pose, and environment "
+        "visibly different from a generic corporate anime portrait. No words, no letters, "
+        "no captions, no logos, no watermark, no photorealism."
     )
     return CardPrompt(
         text=prompt,
@@ -201,13 +336,7 @@ def build_card_prompt(
 def _palette_for_record(
     record: CapsuleRecord,
 ) -> tuple[tuple[int, int, int], ...]:
-    if record.style_profile is None:
-        raise ValueError("An approved profile is required.")
-    dimensions = record.style_profile.dimensions
-    palette_index = int(
-        (dimensions.openness + dimensions.expressiveness + dimensions.formality) // 75
-    ) % len(PALETTES)
-    return PALETTES[palette_index]
+    return PALETTES[_visual_palette_index(record)]
 
 
 class DeterministicArtProvider:
@@ -363,12 +492,13 @@ class CapsuleCardService:
         capsule_id: str,
         *,
         variation: str,
-        seed: int,
+        seed: int | None = None,
     ) -> CardResult:
         if principal is None:
             raise PermissionError("Hugging Face login required")
         record = self._capsule_library.get_capsule(principal, capsule_id)
-        prompt = build_card_prompt(record, variation=variation, seed=seed)
+        resolved_seed = derive_card_seed(record) if seed is None else int(seed)
+        prompt = build_card_prompt(record, variation=variation, seed=resolved_seed)
         used_fallback = self._primary_provider is None
         if self._primary_provider is None:
             art_result = self._fallback.generate(prompt)
@@ -385,7 +515,7 @@ class CapsuleCardService:
         owner_namespace = sha256(principal.user_id.encode()).hexdigest()[:24]
         output_dir = self._artifact_root / "artifacts" / owner_namespace / record.capsule_id
         output_dir.mkdir(parents=True, exist_ok=True)
-        stem = f"card-{variation}-{int(seed)}"
+        stem = f"card-{variation}-{resolved_seed}"
         interactive_path = output_dir / f"{stem}-interactive.png"
         social_path = output_dir / f"{stem}-social.png"
         interactive.save(interactive_path, format="PNG", optimize=True)
@@ -405,7 +535,7 @@ class CapsuleCardService:
                 artifact_refs=prior_artifacts + (relative_interactive, relative_social),
                 card_image_ref=relative_interactive,
                 social_image_ref=relative_social,
-                card_seed=int(seed),
+                card_seed=resolved_seed,
                 card_prompt_hash=prompt.prompt_hash,
                 card_provider=art_result.provider,
                 card_model_id=art_result.model_id,

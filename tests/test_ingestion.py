@@ -101,6 +101,43 @@ def test_profile_schema_and_exemplar_approval_are_deterministic() -> None:
     assert approved.profile.dimensions.formality == 17
 
 
+def test_distinct_writing_samples_produce_distinct_personality_descriptors() -> None:
+    analytical = "\n".join(
+        f"You: {message}"
+        for message in (
+            "First, isolate the risky assumption and measure it with a small test.",
+            "Compare the evidence before choosing the architecture or mechanism.",
+            "The current system hides state and creates a predictable failure mode.",
+            "Write down the decision, owner, tradeoff, and next checkpoint.",
+            "Show one concrete example and the data behind the conclusion.",
+            "Next, remove the variable that cannot be measured reliably.",
+            "The implementation should expose enough state to verify the result.",
+            "Test the highest-risk dependency before committing to the full plan.",
+        )
+    )
+    playful = "\n".join(
+        f"You: {message}"
+        for message in (
+            "Okay, this delightfully wild idea might actually work!",
+            "Plot twist: the tiny prototype survived the chaos!",
+            "Let us make the boring screen a little more fun.",
+            "Honestly, the chaos is part of the charm!",
+            "That button needs one mischievous little surprise.",
+            "I love when a plan leaves room for a joke.",
+            "We can test it without turning launch day into a circus!",
+            "Haha, this version finally has a personality of its own.",
+        )
+    )
+
+    analytical_profile = build_ingestion_draft(analytical, "You", True).profile
+    playful_profile = build_ingestion_draft(playful, "You", True).profile
+
+    assert "analytical" in analytical_profile.descriptors
+    assert "playful" in playful_profile.descriptors
+    assert analytical_profile.descriptors != playful_profile.descriptors
+    assert analytical_profile.summary != playful_profile.summary
+
+
 def test_plain_messages_still_receive_distinct_neutral_contrasts() -> None:
     messages = parse_messages(
         "\n".join(

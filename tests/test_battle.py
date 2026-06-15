@@ -110,6 +110,35 @@ def test_candidate_prompt_injection_remains_quoted_untrusted_data() -> None:
     assert "Alpha" not in str(payload)
 
 
+def test_battle_bounds_legacy_fused_capsule_pairs_before_generation() -> None:
+    first = CapsuleRecord.from_dict(
+        {
+            **_record("a1", "Alpha").as_dict(),
+            "exemplar_pairs": [
+                ExemplarPair(f"Alpha style {index}.", f"Neutral {index}.", index).as_dict()
+                for index in range(8)
+            ],
+        }
+    )
+    second = _record("b2", "Beta")
+    steering = FakeSteering()
+    service = CapsuleBattleService(
+        CapsuleLibrary(InMemoryCapsuleRepository([first, second])),
+        steering,
+        FakeJudge(),
+    )
+
+    service.run(
+        PRINCIPAL,
+        first_id="a1",
+        second_id="b2",
+        challenge="Explain why a small experiment should happen before a large launch.",
+    )
+
+    assert len(steering.calls[0]["pairs"]) == 6
+    assert len(steering.calls[1]["pairs"]) == 1
+
+
 def test_judgment_schema_and_authorization_are_enforced() -> None:
     with pytest.raises(ValueError, match="Invalid candidate_a"):
         validate_judgment(

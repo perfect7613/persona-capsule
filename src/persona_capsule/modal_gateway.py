@@ -4,7 +4,11 @@ from typing import Any
 
 import modal
 
-from persona_capsule.profile import ExemplarPair, ensure_distinct_contrast
+from persona_capsule.profile import (
+    ExemplarPair,
+    bounded_exemplar_pairs,
+    ensure_distinct_contrast,
+)
 from persona_capsule.repository import CapsuleRecord
 
 MODAL_APP_NAME = "persona-capsule-minicpm"
@@ -17,7 +21,7 @@ class ModalSteeringGateway:
     @staticmethod
     def _pairs_payload(pairs: tuple[ExemplarPair, ...]) -> list[dict[str, Any]]:
         payload = []
-        for pair in pairs:
+        for pair in bounded_exemplar_pairs(pairs):
             neutral, repaired = ensure_distinct_contrast(pair.positive, pair.neutral)
             item = {
                 "positive": pair.positive,

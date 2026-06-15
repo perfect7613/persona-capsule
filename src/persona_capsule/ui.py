@@ -1,5 +1,6 @@
 """Custom Gradio interface for Persona Capsule."""
 
+from dataclasses import replace
 from hashlib import sha256
 from html import escape
 from pathlib import Path
@@ -18,8 +19,10 @@ from persona_capsule.identity import IdentityGateway, Principal
 from persona_capsule.ingestion import (
     IngestionDraft,
     IngestionError,
+    MessageRecord,
     approve_draft,
     build_ingestion_draft,
+    infer_style_profile,
 )
 from persona_capsule.library import CapsuleLibrary
 from persona_capsule.operations import (
@@ -28,7 +31,7 @@ from persona_capsule.operations import (
     QuotaExceededError,
 )
 from persona_capsule.publishing import PublishingService, PublishSelection
-from persona_capsule.repository import CapsuleRecord
+from persona_capsule.repository import CapsulePublicProjection, CapsuleRecord
 from persona_capsule.steering import SteeringError
 from persona_capsule.steering_service import CapsuleSteeringService
 from persona_capsule.voice import CapsuleVoiceService, VoiceError
@@ -1063,7 +1066,6 @@ def build_demo(
     def generate_card_core(
         capsule_id: str,
         variation: str,
-        seed: float,
         principal: Principal | None,
     ) -> tuple[str, str, str, CapsuleRecord]:
         if principal is None:
@@ -1076,7 +1078,6 @@ def build_demo(
                 principal,
                 capsule_id,
                 variation=variation,
-                seed=int(seed),
             )
         except (
             FeatureDisabledError,
@@ -1091,8 +1092,9 @@ def build_demo(
         )
         status = (
             f"Generated **{escape(result.record.name)}** using **{provider_label}**. "
-            f"Variation: **{result.prompt.variation}** · seed: **{result.prompt.seed}**. "
-            "The approved profile was not modified."
+            f"Composition: **{result.prompt.variation}**. "
+            "The visual identity came from this capsule's approved traits and dimensions. "
+            "Generate again for a fresh interpretation."
         )
         return (
             str(result.interactive_path),
@@ -1294,6 +1296,41 @@ def build_demo(
             record.style_profile.as_dict(include_private_evidence=True),
             [[True, pair.positive, pair.neutral] for pair in record.exemplar_pairs],
             f"Opened **{escape(record.name)}** from durable private storage.",
+        )
+
+    def refresh_profile_core(
+        capsule_id: str,
+        principal: Principal | None,
+    ) -> tuple[object, CapsuleRecord, str]:
+        if principal is None:
+            raise gr.Error("Sign in with Hugging Face before refreshing a capsule profile.")
+        if not capsule_id:
+            raise gr.Error("Choose a saved capsule first.")
+        record = capsule_library.get_capsule(principal, capsule_id)
+        if not record.exemplar_pairs:
+            raise gr.Error("This capsule has no approved examples to analyze.")
+        profile = infer_style_profile(
+            tuple(MessageRecord(author="You", text=pair.positive) for pair in record.exemplar_pairs)
+        )
+        updated = capsule_library.save_capsule(
+            principal,
+            replace(
+                record,
+                style_profile=profile,
+                public_projection=CapsulePublicProjection.from_profile(record.name, profile),
+                card_seed=None,
+                card_prompt_hash="",
+            ),
+        )
+        return (
+            profile.as_dict(include_private_evidence=True),
+            updated,
+            (
+                f"Refreshed **{escape(record.name)}** from "
+                f"**{len(record.exemplar_pairs)} approved examples** using the richer "
+                "profile model. Generate the card again to apply its new visual identity. "
+                "Any already-published page stays unchanged until you publish again."
+            ),
         )
 
     def export_capsule_core(
@@ -1709,6 +1746,9 @@ def build_demo(
                             label="Include approved private exemplar pairs in this export",
                             value=False,
                         )
+                        refresh_profile = gr.Button(
+                            "Refresh personality labels from approved examples"
+                        )
                         with gr.Row():
                             export_capsule = gr.Button("Export .persona and manifest")
                             delete_confirmation = gr.Checkbox(
@@ -1913,17 +1953,19 @@ def build_demo(
                             "FLUX receives approved descriptors and style dimensions, "
                             "never your private messages."
                         )
-                        with gr.Row():
-                            card_variation = gr.Dropdown(
-                                choices=["signal", "archive", "kinetic"],
-                                value="signal",
-                                label="Visual direction",
-                            )
-                            card_seed = gr.Number(
-                                value=7613,
-                                precision=0,
-                                label="Visual seed",
-                            )
+                        card_variation = gr.Dropdown(
+                            choices=[
+                                ("Focused portrait", "signal"),
+                                ("Layered archive", "archive"),
+                                ("Dynamic motion", "kinetic"),
+                            ],
+                            value="signal",
+                            label="Composition",
+                            info=(
+                                "Choose the framing only. Persona traits automatically control "
+                                "the character, wardrobe, palette, pose, and symbolic setting."
+                            ),
+                        )
                         generate_card = gr.Button(
                             "Generate my collectible card",
                             elem_classes=["pc-button"],
@@ -2380,19 +2422,17 @@ def build_demo(
             def generate_card_with_oauth(
                 capsule_id: str,
                 variation: str,
-                seed: float,
                 profile: gr.OAuthProfile | None,
             ) -> tuple[str, str, str, CapsuleRecord]:
                 return generate_card_core(
                     capsule_id,
                     variation,
-                    seed,
                     identity_gateway.resolve(profile),
                 )
 
             generate_card.click(
                 generate_card_with_oauth,
-                inputs=[capsule_selector, card_variation, card_seed],
+                inputs=[capsule_selector, card_variation],
                 outputs=[
                     interactive_card,
                     social_card,
@@ -2555,6 +2595,15 @@ def build_demo(
                     principal_from_oauth(profile),
                 )
 
+            def refresh_with_oauth(
+                capsule_id: str,
+                profile: gr.OAuthProfile | None,
+            ) -> tuple[object, CapsuleRecord, str]:
+                return refresh_profile_core(
+                    capsule_id,
+                    principal_from_oauth(profile),
+                )
+
             def delete_with_oauth(
                 capsule_id: str,
                 confirmed: bool,
@@ -2580,6 +2629,15 @@ def build_demo(
                 export_with_oauth,
                 inputs=[capsule_selector, include_export_exemplars],
                 outputs=[persona_export, manifest_export, lifecycle_status],
+            )
+            refresh_profile.click(
+                refresh_with_oauth,
+                inputs=[capsule_selector],
+                outputs=[
+                    reopened_profile,
+                    approved_capsule_state,
+                    lifecycle_status,
+                ],
             )
             delete_capsule.click(
                 delete_with_oauth,
@@ -2837,18 +2895,16 @@ def build_demo(
             def generate_card_locally(
                 capsule_id: str,
                 variation: str,
-                seed: float,
             ) -> tuple[str, str, str, CapsuleRecord]:
                 return generate_card_core(
                     capsule_id,
                     variation,
-                    seed,
                     identity_gateway.resolve_local(),
                 )
 
             generate_card.click(
                 generate_card_locally,
-                inputs=[capsule_selector, card_variation, card_seed],
+                inputs=[capsule_selector, card_variation],
                 outputs=[
                     interactive_card,
                     social_card,
@@ -3001,6 +3057,14 @@ def build_demo(
                     identity_gateway.resolve_local(),
                 )
 
+            def refresh_locally(
+                capsule_id: str,
+            ) -> tuple[object, CapsuleRecord, str]:
+                return refresh_profile_core(
+                    capsule_id,
+                    identity_gateway.resolve_local(),
+                )
+
             def delete_locally(
                 capsule_id: str,
                 confirmed: bool,
@@ -3025,6 +3089,15 @@ def build_demo(
                 export_locally,
                 inputs=[capsule_selector, include_export_exemplars],
                 outputs=[persona_export, manifest_export, lifecycle_status],
+            )
+            refresh_profile.click(
+                refresh_locally,
+                inputs=[capsule_selector],
+                outputs=[
+                    reopened_profile,
+                    approved_capsule_state,
+                    lifecycle_status,
+                ],
             )
             delete_capsule.click(
                 delete_locally,

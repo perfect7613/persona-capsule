@@ -8,7 +8,11 @@ from uuid import uuid4
 from persona_capsule.card import CapsuleCardService
 from persona_capsule.identity import Principal
 from persona_capsule.library import CapsuleLibrary
-from persona_capsule.profile import StyleDimensions, StyleProfile
+from persona_capsule.profile import (
+    StyleDimensions,
+    StyleProfile,
+    bounded_exemplar_pairs,
+)
 from persona_capsule.repository import CapsuleRecord
 from persona_capsule.steering import SteeringCompatibilityError, SteeringRecipe
 
@@ -135,7 +139,6 @@ class CapsuleFusionService:
         name: str,
         voice_strategy: str,
         strength: float = 0.85,
-        card_seed: int = 7613,
     ) -> FusionResult:
         if principal is None:
             raise PermissionError("Hugging Face login required")
@@ -215,7 +218,9 @@ class CapsuleFusionService:
                 name=clean_name,
                 status="profile_approved",
                 style_profile=profile,
-                exemplar_pairs=(*first.exemplar_pairs, *second.exemplar_pairs),
+                exemplar_pairs=bounded_exemplar_pairs(
+                    (*first.exemplar_pairs, *second.exemplar_pairs)
+                ),
                 source_fingerprint=fingerprint,
                 steering_recipe=_recipe(first),
                 provenance=provenance,
@@ -233,7 +238,6 @@ class CapsuleFusionService:
             principal,
             record.capsule_id,
             variation="kinetic",
-            seed=int(card_seed),
         )
         return FusionResult(
             record=card.record,

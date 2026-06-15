@@ -183,11 +183,14 @@ def infer_style_profile(messages: tuple[MessageRecord, ...]) -> StyleProfile:
     warmth_terms = (
         len(
             re.findall(
-                r"\b(?:thanks|thank you|please|appreciate|glad|happy|we|together)\b", joined, re.I
+                r"\b(?:thanks|thank you|please|appreciate|glad|happy|kind|support|together)\b",
+                joined,
+                re.I,
             )
         )
         / word_count
     )
+    inclusive_terms = len(re.findall(r"\b(?:we|our|us|together)\b", joined, re.I)) / word_count
     structure_terms = (
         len(
             re.findall(r"\b(?:first|next|then|finally|because|therefore|step|plan)\b", joined, re.I)
@@ -198,22 +201,132 @@ def infer_style_profile(messages: tuple[MessageRecord, ...]) -> StyleProfile:
         len(re.findall(r"\b(?:maybe|perhaps|might|could|I think|seems)\b", joined, re.I))
         / word_count
     )
+    analytical_terms = (
+        len(
+            re.findall(
+                r"\b(?:evidence|assumption|measure|tradeoff|risk|test|data|system|"
+                r"architecture|mechanism|failure|compare|decision)\b",
+                joined,
+                re.I,
+            )
+        )
+        / word_count
+    )
+    playful_terms = (
+        len(
+            re.findall(
+                r"\b(?:haha|lol|funny|joke|wild|plot twist|chaos|mischief|ridiculous)\b",
+                joined,
+                re.I,
+            )
+        )
+        / word_count
+    )
+    poetic_terms = (
+        len(
+            re.findall(
+                r"\b(?:hark|thee|thou|thy|doth|hath|forsooth|alas|behold|"
+                r"moon|stars|soul|dream|whisper|kingdom)\b",
+                joined,
+                re.I,
+            )
+        )
+        / word_count
+    )
+    emotional_terms = (
+        len(
+            re.findall(
+                r"\b(?:love|hate|fear|hope|excited|frustrated|delighted|sad|angry|wonderful)\b",
+                joined,
+                re.I,
+            )
+        )
+        / word_count
+    )
+    imperative_starts = sum(
+        bool(
+            re.match(
+                r"^(?:please\s+)?(?:do|make|send|show|test|write|check|start|stop|"
+                r"choose|use|keep|remove|add|explain|summarize|name|try)\b",
+                text.strip(),
+                re.I,
+            )
+        )
+        for text in texts
+    ) / len(texts)
     novel_words = len({word.casefold() for word in words}) / word_count
 
     dimensions = StyleDimensions(
-        openness=_clamp(35 + novel_words * 80 + questions * 12),
-        conscientiousness=_clamp(42 + structure_terms * 900 + min(avg_words, 24)),
-        expressiveness=_clamp(32 + exclamations * 35 + contractions * 500),
-        agreeableness=_clamp(38 + warmth_terms * 1100 + hedges * 350),
-        emotional_range=_clamp(35 + exclamations * 28 + questions * 12),
-        directness=_clamp(74 - hedges * 800 - questions * 10),
-        formality=_clamp(72 - contractions * 1200 - exclamations * 18),
+        openness=_clamp(28 + novel_words * 58 + questions * 16 + poetic_terms * 900),
+        conscientiousness=_clamp(
+            30 + structure_terms * 1000 + analytical_terms * 500 + min(avg_words, 24) * 0.7
+        ),
+        expressiveness=_clamp(
+            24 + exclamations * 24 + contractions * 520 + playful_terms * 1000 + poetic_terms * 450
+        ),
+        agreeableness=_clamp(30 + warmth_terms * 950 + inclusive_terms * 450 + hedges * 180),
+        emotional_range=_clamp(26 + exclamations * 24 + questions * 10 + emotional_terms * 1000),
+        directness=_clamp(
+            58
+            + imperative_starts * 35
+            - hedges * 950
+            - questions * 16
+            - max(0.0, avg_words - 22) * 0.6
+        ),
+        formality=_clamp(58 - contractions * 1350 - exclamations * 15 + poetic_terms * 650),
     )
-    descriptors = []
-    descriptors.append("direct" if dimensions.directness >= 58 else "deliberative")
-    descriptors.append("warm" if dimensions.agreeableness >= 56 else "reserved")
-    descriptors.append("expressive" if dimensions.expressiveness >= 58 else "measured")
-    descriptors.append("structured" if dimensions.conscientiousness >= 58 else "fluid")
+    descriptors = [
+        (
+            "inquisitive"
+            if questions >= 0.28
+            else "decisive"
+            if dimensions.directness >= 72
+            else "direct"
+            if dimensions.directness >= 64
+            else "deliberative"
+            if dimensions.directness <= 43
+            else "reflective"
+        ),
+        (
+            "warm"
+            if dimensions.agreeableness >= 65
+            else "reserved"
+            if dimensions.agreeableness <= 32
+            else "diplomatic"
+            if hedges + inclusive_terms >= 0.02
+            else "self-contained"
+        ),
+        (
+            "poetic"
+            if poetic_terms >= 0.012
+            else "playful"
+            if playful_terms >= 0.008
+            else "animated"
+            if dimensions.expressiveness >= 65
+            else "expressive"
+            if dimensions.expressiveness >= 52
+            else "understated"
+            if dimensions.expressiveness <= 35
+            else "measured"
+        ),
+        (
+            "analytical"
+            if analytical_terms >= 0.025
+            else "conversational"
+            if playful_terms >= 0.008
+            else "structured"
+            if dimensions.conscientiousness >= 72
+            else "concise"
+            if avg_words < 10
+            else "detailed"
+            if avg_words >= 22
+            else "formal"
+            if dimensions.formality >= 72
+            else "conversational"
+            if contractions >= 0.018
+            else "fluid"
+        ),
+    ]
     rhythm = (
         "Compact sentences with quick pivots."
         if avg_words < 12
@@ -235,11 +348,9 @@ def infer_style_profile(messages: tuple[MessageRecord, ...]) -> StyleProfile:
 
     evidence = tuple(sorted(texts, key=lambda text: abs(len(text) - 110))[:3])
     uncertainty = round(max(0.08, 0.52 - min(len(messages), 24) * 0.018), 2)
+    summary = f"A communication style that is {', '.join(descriptors[:-1])}, and {descriptors[-1]}."
     return StyleProfile(
-        summary=(
-            f"A {descriptors[0]}, {descriptors[1]} communicator with a "
-            f"{descriptors[2]} and {descriptors[3]} delivery."
-        ),
+        summary=summary,
         descriptors=tuple(descriptors),
         lexical_tendencies=tuple(tendencies),
         sentence_rhythm=rhythm,

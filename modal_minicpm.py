@@ -13,7 +13,11 @@ import modal
 LOCAL_SRC = Path(__file__).parent / "src"
 sys.path.insert(0, str(LOCAL_SRC) if LOCAL_SRC.exists() else "/root")
 
-from persona_capsule.profile import ExemplarPair, ensure_distinct_contrast  # noqa: E402
+from persona_capsule.profile import (  # noqa: E402
+    ExemplarPair,
+    bounded_exemplar_pairs,
+    ensure_distinct_contrast,
+)
 from persona_capsule.steering import (  # noqa: E402
     ExpiringVectorCache,
     LayerVectorDiagnostics,
@@ -316,15 +320,17 @@ class MiniCPMSteeringRuntimeV5:
         validated_strength = validate_strength(strength)
         if not prompt.strip():
             raise ValueError("Prompt cannot be empty.")
-        if not 1 <= len(pairs) <= 6:
-            raise ValueError("Provide between one and six approved exemplar pairs.")
-        exemplar_pairs = tuple(
-            ExemplarPair(
-                positive=str(pair["positive"]).strip(),
-                neutral=str(pair["neutral"]).strip(),
-                source_index=int(pair.get("source_index", index)),
+        if not pairs:
+            raise ValueError("Provide at least one approved exemplar pair.")
+        exemplar_pairs = bounded_exemplar_pairs(
+            tuple(
+                ExemplarPair(
+                    positive=str(pair["positive"]).strip(),
+                    neutral=str(pair["neutral"]).strip(),
+                    source_index=int(pair.get("source_index", index)),
+                )
+                for index, pair in enumerate(pairs)
             )
-            for index, pair in enumerate(pairs)
         )
         if any(not pair.positive or not pair.neutral for pair in exemplar_pairs):
             raise ValueError("Every exemplar pair requires positive and neutral text.")

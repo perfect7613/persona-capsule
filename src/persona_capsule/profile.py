@@ -4,6 +4,8 @@ from dataclasses import dataclass, replace
 from hashlib import sha256
 from typing import Any
 
+MAX_RUNTIME_EXEMPLARS = 6
+
 
 def ensure_distinct_contrast(positive: str, neutral: str) -> tuple[str, bool]:
     clean_positive = " ".join(positive.split())
@@ -11,6 +13,22 @@ def ensure_distinct_contrast(positive: str, neutral: str) -> tuple[str, bool]:
     if clean_positive.casefold() != clean_neutral.casefold():
         return clean_neutral, False
     return f"State this information plainly: {clean_positive}", True
+
+
+def bounded_exemplar_pairs(
+    pairs: tuple["ExemplarPair", ...],
+    *,
+    limit: int = MAX_RUNTIME_EXEMPLARS,
+) -> tuple["ExemplarPair", ...]:
+    """Choose an evenly distributed runtime subset without reordering it."""
+    if limit < 1:
+        raise ValueError("Exemplar limit must be positive.")
+    if len(pairs) <= limit:
+        return pairs
+    if limit == 1:
+        return (pairs[0],)
+    indices = tuple(round(index * (len(pairs) - 1) / (limit - 1)) for index in range(limit))
+    return tuple(pairs[index] for index in indices)
 
 
 @dataclass(frozen=True, slots=True)

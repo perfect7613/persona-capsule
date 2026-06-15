@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from persona_capsule.identity import Principal
 from persona_capsule.library import CapsuleLibrary
+from persona_capsule.profile import bounded_exemplar_pairs
 from persona_capsule.repository import CapsuleRecord
 from persona_capsule.steering_service import SteeringGateway
 
@@ -122,7 +123,7 @@ class CapsuleBattleService:
             capsule_id=record.capsule_id,
             capsule_version=record.source_fingerprint,
             prompt=challenge,
-            pairs=record.exemplar_pairs,
+            pairs=bounded_exemplar_pairs(record.exemplar_pairs),
             strength=strength,
         )
         return str(result["steered"])

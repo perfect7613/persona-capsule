@@ -12,6 +12,7 @@ from persona_capsule.card import (
     CapsuleCardService,
     DeterministicArtProvider,
     build_card_prompt,
+    derive_card_seed,
     render_interactive_card,
     render_social_card,
 )
@@ -86,6 +87,39 @@ def test_prompt_has_a_stable_capsule_specific_visual_signature() -> None:
     assert "Stable capsule signature:" in first.text
     assert first.text == repeated.text
     assert first.text != other.text
+
+
+def test_prompt_prioritizes_distinctive_personality_scene_and_wardrobe() -> None:
+    _, record = _library()
+    poetic_payload = record.as_dict()
+    poetic_payload.pop("public_projection")
+    poetic_payload["capsule_id"] = "poetic-card"
+    poetic_payload["style_profile"] = {
+        **record.style_profile.as_dict(),
+        "summary": "A poetic and reflective communication style.",
+        "descriptors": ["reflective", "reserved", "poetic", "formal"],
+    }
+    poetic_record = CapsuleRecord.from_dict(poetic_payload).canonicalized()
+
+    ordinary = build_card_prompt(record, variation="signal", seed=42)
+    poetic = build_card_prompt(poetic_record, variation="signal", seed=42)
+
+    assert "technical jacket" in ordinary.text
+    assert "dreamlike sky of moons" in poetic.text
+    assert "theatrical coat with celestial embroidery" in poetic.text
+    assert ordinary.text != poetic.text
+
+
+def test_hidden_card_seed_changes_for_regeneration() -> None:
+    _, record = _library()
+
+    first = derive_card_seed(record)
+    regenerated_record = CapsuleRecord.from_dict({**record.as_dict(), "card_seed": first})
+    second = derive_card_seed(regenerated_record)
+
+    assert first != second
+    assert 0 <= first <= 0x7FFFFFFF
+    assert 0 <= second <= 0x7FFFFFFF
 
 
 def test_deterministic_fallback_and_card_dimensions() -> None:
