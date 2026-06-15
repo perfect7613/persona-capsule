@@ -277,10 +277,10 @@ class PublishingService:
     nav b {{ font:700 22px Georgia,serif; }}
     nav span {{ font-size:10px; font-weight:900; letter-spacing:.16em;
       text-transform:uppercase; }}
-    article {{ align-items:start; border:1px solid #4a4a41; display:grid;
+    article {{ border:1px solid #4a4a41; display:grid;
       grid-template-columns:minmax(0,.86fr) minmax(420px,1.14fr); margin-top:42px; }}
-    .card-stage {{ align-self:start; background:#0f0f0c; border-right:1px solid #4a4a41;
-      display:grid; min-width:0; overflow:hidden; place-items:start center; width:100%; }}
+    .card-stage {{ background:#0f0f0c; border-right:1px solid #4a4a41;
+      display:grid; min-width:0; overflow:hidden; place-items:center; width:100%; }}
     .card-stage img {{ display:block; height:auto; max-height:none; object-fit:contain;
       object-position:center top; width:100%; }}
     .identity {{ align-content:center; padding:52px; }}
