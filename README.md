@@ -41,6 +41,11 @@ then lets them see, hear, export, and safely share that style.
 It is not a psychological diagnosis and it does not claim to recreate a human
 being. It is a user-controlled model of communication style.
 
+## Team
+
+- [Ame Muké](https://huggingface.co/perfect7613)
+- [Oyeshani](https://huggingface.co/oyeshani)
+
 [Product requirements](./PRD.md) ·
 [Technical audit](./PLAN_AUDIT.md) ·
 [Codex development record](./CODEX_USAGE.md) ·
@@ -281,7 +286,6 @@ src/persona_capsule/
   ui.py                        Gradio experience
 tests/                         Unit and provider-contract tests
 scripts/                       Deployment and submission checks
-docs/                          Demo, deployment, and acceptance guides
 PRD.md                         Approved product requirements
 PLAN_AUDIT.md                  Original-plan technical audit
 CODEX_USAGE.md                 Public Codex development record
@@ -368,9 +372,8 @@ uv run python scripts/deploy_space.py --dry-run
 uv run python scripts/deploy_space.py
 ```
 
-See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the exact secret and release
-procedure. The scripts intentionally refuse to deploy until credential rotation
-is explicitly confirmed.
+The deploy script intentionally refuses to update the Space until credential
+rotation is explicitly confirmed.
 
 ## Quality Checks
 
@@ -446,11 +449,8 @@ for public evidence.
 - [Canonical PRD discussion](https://github.com/perfect7613/persona-capsule/issues/1)
 - [Implementation issues](https://github.com/perfect7613/persona-capsule/issues)
 - [Technical plan audit](./PLAN_AUDIT.md)
-- [Image fine-tuning branch audit](./docs/IMAGE_FINETUNE_BRANCH_AUDIT.md)
 - [Codex usage record](./CODEX_USAGE.md)
 - [Target Hugging Face Space](https://huggingface.co/spaces/build-small-hackathon/persona-capsule)
-- [Demo script](./docs/DEMO_SCRIPT.md)
-- [Manual acceptance checklist](./docs/MANUAL_ACCEPTANCE.md)
 
 The final public demo-video URL and X/social-post URL are intentionally added
 only after project-owner review. `scripts/check_submission.py --strict` blocks

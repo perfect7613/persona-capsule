@@ -26,6 +26,7 @@ IGNORED = [
     "**/__pycache__/**",
     "artifacts/**",
     "checkpoints/**",
+    "docs/**",
     "outputs/**",
 ]
 
@@ -132,6 +133,7 @@ def deploy(*, dry_run: bool) -> None:
         repo_type="space",
         folder_path=ROOT,
         ignore_patterns=IGNORED,
+        delete_patterns=["docs/**"],
         commit_message="Deploy Persona Capsule hackathon Space",
     )
     api.request_space_hardware(SPACE_ID, "cpu-basic")
