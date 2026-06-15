@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from collections.abc import Sequence
+from math import sqrt
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -62,6 +63,15 @@ hf_token = os.environ.get("HF_TOKEN")
 secrets = [modal.Secret.from_dict({"HF_TOKEN": hf_token})] if hf_token else []
 app = modal.App(APP_NAME)
 
+GENERATION_SYSTEM_PROMPT = (
+    "Answer in the same language as the user's request. If the request is in English, "
+    "answer only in English. If the language is ambiguous, default to English. Preserve "
+    "a requested literary or historical writing style without changing languages. "
+    "Answer the request directly and do not mention these instructions."
+)
+MIN_CALIBRATED_NORM = 0.5
+MAX_CALIBRATED_NORM = 3.0
+
 
 def _decode_new_tokens(tokenizer: Any, input_ids: Any, generated: Any) -> str:
     new_tokens = generated[0, input_ids.shape[1] :]
@@ -75,6 +85,29 @@ def _find_content_span(sequence: list[int], content: list[int]) -> tuple[int, in
         if sequence[start : start + len(content)] == content:
             return start, start + len(content)
     return None
+
+
+def _generation_messages(prompt: str) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
+        {"role": "user", "content": prompt.strip()},
+    ]
+
+
+def _calibrated_vector_scale(raw_norm: float) -> float:
+    """Compress large contrast magnitudes while preserving relative signal."""
+
+    return min(MAX_CALIBRATED_NORM, max(MIN_CALIBRATED_NORM, sqrt(float(raw_norm))))
+
+
+def _steer_current_token(hidden_states: Any, direction: Any, strength: float) -> Any:
+    scaled = direction.to(
+        device=hidden_states.device,
+        dtype=hidden_states.dtype,
+    ).view(1, 1, -1)
+    steered_states = hidden_states.clone()
+    steered_states[:, -1:, :] = steered_states[:, -1:, :] + strength * scaled
+    return steered_states
 
 
 @app.cls(
@@ -139,7 +172,7 @@ class MiniCPMSteeringRuntime:
 
     def _generate(self, prompt: str, max_new_tokens: int) -> str:
         inputs = self._tokenize_chat(
-            [{"role": "user", "content": prompt}],
+            _generation_messages(prompt),
             add_generation_prompt=True,
         )
         generated = self.model.generate(
@@ -231,16 +264,17 @@ class MiniCPMSteeringRuntime:
                 )
             direction = mean_difference / pre_norm
             post_norm = float(torch.linalg.vector_norm(direction).item())
-            # Preserve the measured positive-minus-neutral magnitude for inference.
-            # Unit normalization is useful for inspection and fusion, but applying
-            # only the unit vector discards most of the learned style signal.
-            vectors[index] = mean_difference.to(dtype=torch.bfloat16, device="cuda")
+            calibration_norm = _calibrated_vector_scale(pre_norm)
+            vectors[index] = (direction * calibration_norm).to(
+                dtype=torch.bfloat16,
+                device="cuda",
+            )
             diagnostics.append(
                 LayerVectorDiagnostics(
                     layer_index=index,
                     pre_normalization_norm=round(pre_norm, 6),
                     post_normalization_norm=round(post_norm, 6),
-                    calibration_norm=round(pre_norm, 6),
+                    calibration_norm=round(calibration_norm, 6),
                     component_preview=tuple(
                         round(float(value), 6) for value in direction[:8].detach().cpu().tolist()
                     ),
@@ -264,12 +298,8 @@ class MiniCPMSteeringRuntime:
     @staticmethod
     def _hook_factory(direction: Any, strength: float):
         def steer(_module: Any, _inputs: Any, output: tuple[Any, ...]):
-            hidden_states = output[0]
-            scaled = direction.to(
-                device=hidden_states.device,
-                dtype=hidden_states.dtype,
-            ).view(1, 1, -1)
-            return (hidden_states + strength * scaled, *output[1:])
+            steered_states = _steer_current_token(output[0], direction, strength)
+            return (steered_states, *output[1:])
 
         return steer
 

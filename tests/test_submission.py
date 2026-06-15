@@ -36,6 +36,7 @@ def test_space_deployment_plan_uses_official_org_and_secret_names_only() -> None
     deployer = _load_deployer()
     plan = deployer.deployment_plan()
     assert plan["space_id"] == "build-small-hackathon/persona-capsule"
+    assert plan["public_base_url"] == ("https://build-small-hackathon-persona-capsule.hf.space")
     assert plan["hardware"] == "cpu-basic"
     assert plan["oauth"] is True
     assert "HF_TOKEN" in plan["secret_names"]

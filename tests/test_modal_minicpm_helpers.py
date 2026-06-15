@@ -40,3 +40,42 @@ def test_content_span_finds_last_exact_token_sequence() -> None:
 
     assert runtime._find_content_span([1, 2, 3, 2, 3, 4], [2, 3]) == (3, 5)
     assert runtime._find_content_span([1, 2, 3], [8]) is None
+
+
+def test_generation_prompt_preserves_request_language() -> None:
+    runtime = _load_runtime_module()
+
+    messages = runtime._generation_messages(
+        "Reply as Shakespeare: Should we test the risky assumption first?"
+    )
+
+    assert messages[0]["role"] == "system"
+    assert "answer only in English" in messages[0]["content"]
+    assert messages[1] == {
+        "role": "user",
+        "content": "Reply as Shakespeare: Should we test the risky assumption first?",
+    }
+
+
+def test_vector_calibration_compresses_extreme_magnitudes() -> None:
+    runtime = _load_runtime_module()
+
+    assert runtime._calibrated_vector_scale(0.01) == 0.5
+    assert runtime._calibrated_vector_scale(4.0) == 2.0
+    assert runtime._calibrated_vector_scale(100.0) == 3.0
+
+
+def test_steering_changes_only_the_current_token() -> None:
+    import pytest
+
+    torch = pytest.importorskip("torch")
+
+    runtime = _load_runtime_module()
+    hidden_states = torch.zeros((1, 3, 2))
+    direction = torch.tensor([2.0, -1.0])
+
+    steered = runtime._steer_current_token(hidden_states, direction, 0.5)
+
+    assert torch.equal(steered[:, :2, :], hidden_states[:, :2, :])
+    assert torch.equal(steered[:, -1, :], torch.tensor([[1.0, -0.5]]))
+    assert torch.equal(hidden_states, torch.zeros((1, 3, 2)))

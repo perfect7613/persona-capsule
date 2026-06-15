@@ -13,7 +13,7 @@ from persona_capsule.profile import ExemplarPair
 MODEL_ID = "openbmb/MiniCPM4.1-8B"
 MODEL_REVISION = "3a8dfed9c79a45e07dbff95bcd49d792343fa1a3"
 TRANSFORMERS_VERSION = "4.57.3"
-STEERING_FORMAT_VERSION = "persona-steering-v2"
+STEERING_FORMAT_VERSION = "persona-steering-v3"
 DEFAULT_LAYER_INDICES = (8, 12, 16, 20, 24)
 MIN_STRENGTH = -1.5
 MAX_STRENGTH = 1.5
@@ -44,7 +44,7 @@ class SteeringRecipe:
     hidden_size: int = 4096
     num_hidden_layers: int = 32
     layer_indices: tuple[int, ...] = DEFAULT_LAYER_INDICES
-    aggregation: str = "assistant_content_token_mean_difference"
+    aggregation: str = "assistant_content_mean_difference_calibrated_current_token"
     format_version: str = STEERING_FORMAT_VERSION
 
     def compatibility_payload(self) -> str:

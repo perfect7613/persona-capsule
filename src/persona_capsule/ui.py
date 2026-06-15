@@ -945,7 +945,7 @@ def build_demo(
         directness: float,
         formality: float,
         principal: Principal | None,
-    ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
+    ) -> tuple[str, str, str, str, str, None, CapsuleRecord, object, object]:
         if principal is None:
             raise gr.Error("Sign in with Hugging Face before saving a capsule.")
         try:
@@ -992,6 +992,11 @@ def build_demo(
                 source_fingerprint=approved.source_fingerprint,
             ),
         )
+        gr.Info(
+            f"{name} is ready. Opening Step 2 so you can test its live steering.",
+            duration=8,
+            title="Capsule created",
+        )
         return (
             (
                 f"Approved **{escape(name)}** with "
@@ -999,6 +1004,10 @@ def build_demo(
                 "The original pasted input and unselected messages were discarded."
             ),
             _library_html(principal, capsule_library),
+            (
+                f"Active capsule: **{escape(name)}** · "
+                f"{len(approved.exemplar_pairs)} approved steering pairs."
+            ),
             "",
             "",
             None,
@@ -1007,6 +1016,7 @@ def build_demo(
                 choices=_capsule_choices(principal, capsule_library),
                 value=record.capsule_id,
             ),
+            gr.Tabs(selected="test"),
         )
 
     def steer_core(
@@ -1575,7 +1585,7 @@ def build_demo(
         with gr.Tabs(
             selected="create",
             elem_classes=["pc-journey-tabs"],
-        ):
+        ) as journey_tabs:
             with gr.Tab("1 · Create", id="create"):
                 with gr.Column(elem_classes=["pc-tab-shell"]):
                     gr.HTML(
@@ -1932,8 +1942,7 @@ def build_demo(
                     with gr.Accordion(
                         "Add an authorized VoxCPM2 voice",
                         open=False,
-                        visible=settings.enable_voice
-                        and settings.voxcpm_available,
+                        visible=settings.enable_voice and settings.voxcpm_available,
                         elem_classes=["pc-advanced"],
                     ):
                         gr.Markdown(
@@ -2109,11 +2118,13 @@ def build_demo(
         approval_outputs = [
             creation_status,
             library,
+            lifecycle_status,
             raw_messages,
             cleaned_preview,
             draft_state,
             approved_capsule_state,
             capsule_selector,
+            journey_tabs,
         ]
         estimate_deep.click(
             deep_estimate_core,
@@ -2192,7 +2203,7 @@ def build_demo(
                 direct_value: float,
                 formal_value: float,
                 profile: gr.OAuthProfile | None,
-            ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
+            ) -> tuple[str, str, str, str, str, None, CapsuleRecord, object, object]:
                 return approve_core(
                     name,
                     draft,
@@ -2656,7 +2667,7 @@ def build_demo(
                 emotional_value: float,
                 direct_value: float,
                 formal_value: float,
-            ) -> tuple[str, str, str, str, None, CapsuleRecord, object]:
+            ) -> tuple[str, str, str, str, str, None, CapsuleRecord, object, object]:
                 return approve_core(
                     name,
                     draft,

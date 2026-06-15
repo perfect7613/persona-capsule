@@ -122,7 +122,10 @@ class PublishingService:
 
     def x_share_url(self, record: CapsuleRecord) -> str:
         url = self.public_url(record)
-        text = f"Meet {record.name}, my Persona Capsule."
+        text = (
+            f"I turned my communication style into {record.name}, a live-steered "
+            'Persona Capsule. Chat with it, then try "Do you really know me?"'
+        )
         return f"https://x.com/intent/post?text={quote(text)}&url={quote(url)}"
 
     def get_public(self, slug: str) -> CapsuleRecord:

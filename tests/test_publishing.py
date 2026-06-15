@@ -162,6 +162,7 @@ def test_public_routes_render_crawler_metadata_and_unpublish(
     assert 'name="twitter:card" content="summary_large_image"' in page.text
     assert f"https://capsules.example/c/{published.public_slug}" in page.text
     assert "https://x.com/intent/post" in page.text
+    assert "Do%20you%20really%20know%20me%3F" in page.text
     assert "Synthetic voice" in page.text
     assert "Talk to the capsule" in page.text
     assert f"/c/{published.public_slug}/chat" in page.text

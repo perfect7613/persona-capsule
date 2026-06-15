@@ -11,6 +11,7 @@ from huggingface_hub import HfApi
 
 ROOT = Path(__file__).resolve().parents[1]
 SPACE_ID = "build-small-hackathon/persona-capsule"
+SPACE_HOST = "build-small-hackathon-persona-capsule.hf.space"
 IGNORED = [
     ".env",
     ".env.*",
@@ -39,6 +40,7 @@ def _required(name: str) -> str:
 def deployment_plan() -> dict[str, object]:
     return {
         "space_id": SPACE_ID,
+        "public_base_url": f"https://{SPACE_HOST}",
         "visibility": "public",
         "sdk": "gradio",
         "hardware": "cpu-basic",
@@ -112,7 +114,7 @@ def deploy(*, dry_run: bool) -> None:
         "ENABLE_VOICE": os.environ.get("ENABLE_VOICE", "true"),
         "GRADIO_SSR_MODE": "false",
         "HF_CAPSULE_REPO_ID": data_repo,
-        "PUBLIC_BASE_URL": f"https://huggingface.co/spaces/{SPACE_ID}",
+        "PUBLIC_BASE_URL": f"https://{SPACE_HOST}",
     }
     secrets = {
         "HF_TOKEN": service_token,
