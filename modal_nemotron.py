@@ -9,19 +9,36 @@ APP_NAME = "persona-capsule-nemotron"
 MODEL_ID = "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16"
 MODEL_REVISION = "dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f"
 MODEL_CACHE_PATH = "/models"
+SCORE_DIMENSIONS = ("style_fidelity", "response_quality", "instruction_adherence", "safety")
 
 model_volume = modal.Volume.from_name(
     "persona-capsule-nemotron-models",
     create_if_missing=True,
 )
 image = (
-    modal.Image.debian_slim(python_version="3.11")
+    modal.Image.from_registry(
+        "nvidia/cuda:12.8.1-devel-ubuntu22.04",
+        add_python="3.11",
+    )
+    .entrypoint([])
+    .apt_install("build-essential", "git", "ninja-build")
     .uv_pip_install(
         "accelerate==1.10.1",
+        "einops==0.8.2",
         "huggingface-hub[hf-xet]==0.36.0",
+        "packaging==25.0",
         "safetensors==0.6.2",
         "torch==2.7.1",
         "transformers==4.57.3",
+        "wheel==0.45.1",
+        extra_index_url="https://download.pytorch.org/whl/cu128",
+        extra_options="--index-strategy unsafe-best-match",
+    )
+    .uv_pip_install(
+        "causal-conv1d==1.6.2.post1",
+        "mamba-ssm==2.3.2.post1",
+        extra_options="--no-build-isolation --no-deps",
+        env={"CUDA_HOME": "/usr/local/cuda", "MAX_JOBS": "4"},
     )
     .env(
         {
@@ -43,6 +60,32 @@ def _extract_json(text: str) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Nemotron returned a non-object JSON value.")
     return payload
+
+
+def _normalize_judgment(payload: dict) -> dict:
+    if isinstance(payload.get("scores"), dict):
+        return payload
+    flat_scores: dict[str, dict[str, object]] = {}
+    rationales: list[str] = []
+    for candidate in ("candidate_a", "candidate_b"):
+        candidate_payload = payload.get(candidate)
+        if not isinstance(candidate_payload, dict):
+            return payload
+        flat_scores[candidate] = {
+            dimension: candidate_payload[dimension]
+            for dimension in SCORE_DIMENSIONS
+            if dimension in candidate_payload
+        }
+        rationale = str(candidate_payload.get("rationale", "")).strip()
+        if rationale:
+            rationales.append(f"{candidate}: {rationale}")
+    if not all(len(scores) == len(SCORE_DIMENSIONS) for scores in flat_scores.values()):
+        return payload
+    return {
+        **payload,
+        "scores": flat_scores,
+        "rationale": str(payload.get("rationale", "")).strip() or " ".join(rationales),
+    }
 
 
 @app.cls(
@@ -67,7 +110,7 @@ class NemotronBattleRuntime:
         self.model = AutoModelForCausalLM.from_pretrained(
             MODEL_ID,
             revision=MODEL_REVISION,
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
             trust_remote_code=True,
             device_map={"": "cuda"},
             low_cpu_mem_usage=True,
@@ -108,7 +151,7 @@ class NemotronBattleRuntime:
             output[0, inputs["input_ids"].shape[1] :],
             skip_special_tokens=True,
         )
-        result = _extract_json(decoded)
+        result = _normalize_judgment(_extract_json(decoded))
         result["model_id"] = MODEL_ID
         result["model_revision"] = MODEL_REVISION
         return result
