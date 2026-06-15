@@ -29,7 +29,11 @@ from persona_capsule.operations import (
     SafeTelemetry,
 )
 from persona_capsule.publishing import PublishingService
-from persona_capsule.repository import CapsuleRepository, InMemoryCapsuleRepository
+from persona_capsule.repository import (
+    CapsuleNotFoundError,
+    CapsuleRepository,
+    InMemoryCapsuleRepository,
+)
 from persona_capsule.repository_factory import build_capsule_repository
 from persona_capsule.steering_service import CapsuleSteeringService, SteeringGateway
 from persona_capsule.ui import CSS, build_demo, build_theme
@@ -354,6 +358,19 @@ def create_app(
             path = publishing_service.public_image_path(record)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Capsule image unavailable") from exc
+        return FileResponse(path, media_type="image/png")
+
+    @app.get(
+        "/c/{slug}/card",
+        response_class=FileResponse,
+        include_in_schema=False,
+    )
+    async def public_capsule_card(slug: str) -> FileResponse:
+        try:
+            record = publishing_service.get_public(slug)
+            path = publishing_service.public_card_path(record)
+        except (CapsuleNotFoundError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=404, detail="Capsule card unavailable") from exc
         return FileResponse(path, media_type="image/png")
 
     @app.get(

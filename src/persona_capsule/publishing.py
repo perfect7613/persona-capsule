@@ -89,6 +89,13 @@ class PublishingService:
         projection = self.preview(principal, capsule_id, selection)
         if projection.get("social_image"):
             self._persist_artifact(record, record.social_image_ref)
+            if record.card_image_ref:
+                try:
+                    self._persist_artifact(record, record.card_image_ref)
+                except (CapsuleNotFoundError, FileNotFoundError):
+                    # Older capsules may not have persisted the portrait card.
+                    # Their social image remains a valid public fallback.
+                    pass
         if projection.get("voice_sample"):
             self._persist_artifact(record, record.voice_sample_ref)
         slug = record.public_slug or token_urlsafe(18)
@@ -177,6 +184,17 @@ class PublishingService:
             raise CapsuleNotFoundError(record.public_slug)
         return self._resolve_artifact(record, record.social_image_ref)
 
+    def public_card_path(self, record: CapsuleRecord) -> Path:
+        projection = record.published_projection or {}
+        if not projection.get("social_image"):
+            raise CapsuleNotFoundError(record.public_slug)
+        if record.card_image_ref:
+            try:
+                return self._resolve_artifact(record, record.card_image_ref)
+            except (CapsuleNotFoundError, FileNotFoundError):
+                pass
+        return self.public_image_path(record)
+
     def public_audio_path(self, record: CapsuleRecord) -> Path:
         projection = record.published_projection or {}
         if not projection.get("voice_sample") or not record.voice_sample_ref:
@@ -198,6 +216,7 @@ class PublishingService:
             if projection.get("social_image")
             else f"{self._public_base_url}/app/"
         )
+        card_url = f"{canonical}/card"
         descriptors = projection.get("descriptors", [])
         descriptors_html = "".join(
             f"<span>{escape(str(descriptor))}</span>" for descriptor in descriptors
@@ -210,7 +229,8 @@ class PublishingService:
         )
         share_url = self.x_share_url(record)
         image_html = (
-            f'<img src="{escape(image_url)}" alt="{escape(title)} generated card">'
+            f'<div class="card-stage"><img src="{escape(card_url)}" '
+            f'alt="{escape(title)} generated card"></div>'
             if projection.get("social_image")
             else ""
         )
@@ -257,11 +277,13 @@ class PublishingService:
     nav b {{ font:700 22px Georgia,serif; }}
     nav span {{ font-size:10px; font-weight:900; letter-spacing:.16em;
       text-transform:uppercase; }}
-    article {{ border:1px solid #4a4a41; display:grid;
-      grid-template-columns:minmax(0,1.06fr) minmax(360px,.94fr); margin-top:42px; }}
-    article > img {{ display:block; height:100%; min-height:540px; object-fit:cover;
-      width:100%; }}
-    .identity {{ align-content:center; border-left:1px solid #4a4a41; padding:52px; }}
+    article {{ align-items:start; border:1px solid #4a4a41; display:grid;
+      grid-template-columns:minmax(0,.86fr) minmax(420px,1.14fr); margin-top:42px; }}
+    .card-stage {{ align-self:start; background:#0f0f0c; border-right:1px solid #4a4a41;
+      display:grid; min-width:0; overflow:hidden; place-items:start center; width:100%; }}
+    .card-stage img {{ display:block; height:auto; max-height:none; object-fit:contain;
+      object-position:center top; width:100%; }}
+    .identity {{ align-content:center; padding:52px; }}
     .eyebrow {{ color:var(--acid); font-size:11px; font-weight:900;
       letter-spacing:.16em; text-transform:uppercase; }}
     h1 {{ font:500 clamp(52px,6vw,86px)/.88 Georgia,serif; letter-spacing:-.055em;
@@ -332,8 +354,8 @@ class PublishingService:
       main {{ padding:18px 16px 54px; }}
       nav span {{ display:none; }}
       article {{ grid-template-columns:1fr; }}
-      article > img {{ min-height:0; }}
-      .identity {{ border-left:0; border-top:1px solid #4a4a41; padding:32px 26px; }}
+      .card-stage {{ border-bottom:1px solid #4a4a41; border-right:0; }}
+      .identity {{ padding:32px 26px; }}
       .challenge-section {{ grid-template-columns:1fr; padding:26px; }}
       .challenge-answers {{ grid-template-columns:1fr; }}
       .chat-section {{ grid-template-columns:1fr; }}

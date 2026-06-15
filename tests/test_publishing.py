@@ -155,16 +155,22 @@ def test_public_routes_render_crawler_metadata_and_unpublish(
     with TestClient(app) as client:
         page = client.get(f"/c/{published.public_slug}")
         image = client.get(f"/c/{published.public_slug}/image")
+        card = client.get(f"/c/{published.public_slug}/card")
         audio = client.get(f"/c/{published.public_slug}/audio")
 
     assert page.status_code == 200
     assert image.status_code == 200
+    assert card.status_code == 200
     assert audio.status_code == 200
     assert image.headers["content-type"] == "image/png"
+    assert card.headers["content-type"] == "image/png"
     assert audio.headers["content-type"] == "audio/wav"
     assert 'property="og:title"' in page.text
     assert 'property="og:image"' in page.text
     assert 'name="twitter:card" content="summary_large_image"' in page.text
+    assert f"/c/{published.public_slug}/card" in page.text
+    assert "object-fit:contain" in page.text
+    assert "object-fit:cover" not in page.text
     assert f"https://capsules.example/c/{published.public_slug}" in page.text
     assert "https://x.com/intent/post" in page.text
     assert "Do%20you%20really%20know%20me%3F" in page.text
